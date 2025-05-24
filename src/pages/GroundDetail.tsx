@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 
 const GroundDetail = () => {
   const { id } = useParams();
@@ -24,10 +26,9 @@ const GroundDetail = () => {
   const [date, setDate] = useState<string>("");
   const [timeSlot, setTimeSlot] = useState<string>("");
   const [bookingLoading, setBookingLoading] = useState(false);
-  const [bookingSuccess, setBookingSuccess] = useState("");
-  const [bookingError, setBookingError] = useState("");
   const [user, setUser] = useState<any>(null);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchGround = async () => {
@@ -41,35 +42,104 @@ const GroundDetail = () => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
   }, [id]);
 
+  const parseTimeSlot = (slot: string) => {
+    // Parse "9:00 AM - 11:00 AM" format
+    const [start, end] = slot.split(' - ');
+    return {
+      start_time: convertTo24Hour(start.trim()),
+      end_time: convertTo24Hour(end.trim())
+    };
+  };
+
+  const convertTo24Hour = (time12h: string) => {
+    const [time, modifier] = time12h.split(' ');
+    let [hours, minutes] = time.split(':');
+    if (hours === '12') {
+      hours = '00';
+    }
+    if (modifier === 'PM' && hours !== '12') {
+      hours = (parseInt(hours, 10) + 12).toString();
+    }
+    return `${hours}:${minutes}:00`;
+  };
+
+  const calculateTotalPrice = (timeSlot: string, pricePerHour: number) => {
+    // Calculate duration in hours based on time slot
+    const [start, end] = timeSlot.split(' - ');
+    const startHour = parseInt(start.split(':')[0]);
+    const endHour = parseInt(end.split(':')[0]);
+    let duration = endHour - startHour;
+    
+    // Handle PM times
+    if (end.includes('PM') && !start.includes('PM') && startHour !== 12) {
+      duration = (endHour + 12) - startHour;
+    } else if (end.includes('PM') && start.includes('PM')) {
+      duration = endHour - startHour;
+    }
+    
+    return duration * pricePerHour;
+  };
+
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBookingError("");
-    setBookingSuccess("");
+    
     if (!user) {
-      setBookingError("You must be logged in to book a ground.");
+      toast({
+        title: "Authentication Required",
+        description: "You must be logged in to book a ground.",
+        variant: "destructive",
+      });
       return;
     }
+    
     if (!date || !timeSlot) {
-      setBookingError("Please select a date and time slot.");
+      toast({
+        title: "Missing Information",
+        description: "Please select a date and time slot.",
+        variant: "destructive",
+      });
       return;
     }
+    
     setBookingLoading(true);
-    const { error } = await supabase.from('bookings').insert({
-      ground_id: ground.id,
-      user_id: user.id,
-      user_email: user.email,
-      date,
-      time_slot: timeSlot
-    });
-    setBookingLoading(false);
-    if (error) {
-      setBookingError(error.message);
-    } else {
-      setBookingSuccess("Booking successful!");
-      setDate("");
-      setTimeSlot("");
-      setTimeout(() => setBookingSuccess(""), 2000);
+    
+    try {
+      const { start_time, end_time } = parseTimeSlot(timeSlot);
+      const total_price = calculateTotalPrice(timeSlot, ground.price_per_hour);
+      
+      const { error } = await supabase.from('bookings').insert({
+        user_id: user.id,
+        ground_id: ground.id,
+        booking_date: date,
+        start_time,
+        end_time,
+        total_price,
+        status: 'pending'
+      });
+      
+      if (error) {
+        toast({
+          title: "Booking Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Booking Successful!",
+          description: "Your booking has been submitted successfully.",
+        });
+        setDate("");
+        setTimeSlot("");
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
     }
+    
+    setBookingLoading(false);
   };
 
   // Example time slots
@@ -117,11 +187,11 @@ const GroundDetail = () => {
               </div>
               <div className="flex items-center">
                 <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
-                <span>{ground.rating ? ground.rating : 'N/A'}</span>
+                <span>4.5</span>
               </div>
               <div className="flex items-center">
                 <Clock className="h-4 w-4 mr-1" />
-                <span>Price: ₹{ground.price_per_hour}</span>
+                <span>Price: ₹{ground.price_per_hour}/hour</span>
               </div>
             </div>
           </div>
@@ -139,7 +209,6 @@ const GroundDetail = () => {
                     className="w-full h-full object-cover rounded-lg"
                   />
                 </div>
-                {/* If you have multiple images, map them here. Otherwise, show only the main image. */}
               </div>
 
               {/* Tabs for details */}
@@ -147,7 +216,6 @@ const GroundDetail = () => {
                 <TabsList className="w-full grid grid-cols-1">
                   <TabsTrigger value="description">Description</TabsTrigger>
                 </TabsList>
-                {/* Description tab */}
                 <TabsContent value="description" className="py-4">
                   <p className="text-muted-foreground">{ground.description}</p>
                   <div className="mt-4">
@@ -157,6 +225,7 @@ const GroundDetail = () => {
                 </TabsContent>
               </Tabs>
             </div>
+            
             {/* Right column - Booking and info */}
             <div>
               <Card>
@@ -177,9 +246,9 @@ const GroundDetail = () => {
                           ))}
                         </select>
                       </div>
-                      {bookingError && <div className="text-red-600 text-sm">{bookingError}</div>}
-                      {bookingSuccess && <div className="text-green-600 text-sm">{bookingSuccess}</div>}
-                      <Button type="submit" disabled={bookingLoading}>{bookingLoading ? 'Booking...' : 'Book Now'}</Button>
+                      <Button type="submit" disabled={bookingLoading} className="w-full">
+                        {bookingLoading ? 'Booking...' : 'Book Now'}
+                      </Button>
                     </form>
                   </div>
                   <div className="text-sm text-muted-foreground">
