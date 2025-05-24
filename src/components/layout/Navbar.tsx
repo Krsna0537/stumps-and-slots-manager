@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Calendar, Home, User, UserPlus, LogIn, LogOut } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,6 +9,7 @@ const Navbar = () => {
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const getUser = async () => {
@@ -54,17 +55,11 @@ const Navbar = () => {
     navigate('/');
   };
 
-  return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Link to="/" className="flex items-center gap-2">
-            <Calendar className="h-6 w-6 text-green-600" />
-            <span className="text-xl font-bold">StumpsNSlots</span>
-          </Link>
-        </div>
-        
-        <nav className="hidden md:flex items-center gap-6 font-medium">
+  const getNavLinks = () => {
+    if (!user) {
+      // Public navigation
+      return (
+        <>
           <Link to="/" className="flex items-center gap-2 text-sm hover:text-primary">
             <Home className="w-4 h-4" />
             Home
@@ -74,6 +69,56 @@ const Navbar = () => {
             Grounds
           </Link>
           <Link to="/contact" className="text-sm hover:text-primary">Contact</Link>
+        </>
+      );
+    }
+
+    if (userRole === 'admin') {
+      // Admin navigation
+      return (
+        <>
+          <Link to="/dashboard" className="flex items-center gap-2 text-sm hover:text-primary">
+            <Home className="w-4 h-4" />
+            Dashboard
+          </Link>
+          <Link to="/grounds" className="flex items-center gap-2 text-sm hover:text-primary">
+            <Calendar className="w-4 h-4" />
+            Grounds
+          </Link>
+          <Link to="/admin" className="text-sm hover:text-primary">Admin Panel</Link>
+          <Link to="/contact" className="text-sm hover:text-primary">Contact</Link>
+        </>
+      );
+    }
+
+    // Regular user navigation
+    return (
+      <>
+        <Link to="/dashboard" className="flex items-center gap-2 text-sm hover:text-primary">
+          <Home className="w-4 h-4" />
+          Dashboard
+        </Link>
+        <Link to="/grounds" className="flex items-center gap-2 text-sm hover:text-primary">
+          <Calendar className="w-4 h-4" />
+          Browse Grounds
+        </Link>
+        <Link to="/contact" className="text-sm hover:text-primary">Contact</Link>
+      </>
+    );
+  };
+
+  return (
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-16 items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Link to={user ? "/dashboard" : "/"} className="flex items-center gap-2">
+            <Calendar className="h-6 w-6 text-green-600" />
+            <span className="text-xl font-bold">StumpsNSlots</span>
+          </Link>
+        </div>
+        
+        <nav className="hidden md:flex items-center gap-6 font-medium">
+          {getNavLinks()}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -85,13 +130,6 @@ const Navbar = () => {
                   Profile
                 </Link>
               </Button>
-              {userRole === 'admin' && (
-                <Button variant="outline" asChild>
-                  <Link to="/admin">
-                    Admin
-                  </Link>
-                </Button>
-              )}
               <Button variant="destructive" onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Logout
