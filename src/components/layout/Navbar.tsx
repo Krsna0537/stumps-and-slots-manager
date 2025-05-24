@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -19,12 +18,25 @@ const Navbar = () => {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
+        // Check user_profiles table for is_admin flag
+        const { data: userProfile, error } = await supabase
+          .from('user_profiles')
+          .select('is_admin')
           .eq('id', session.user.id)
           .single();
-        setUserRole(profile?.role || null);
+        
+        console.log('Navbar - User profile:', { userProfile, error });
+        
+        if (error) {
+          console.error('Navbar - Error fetching user profile:', error);
+          setUserRole('user');
+        } else {
+          const isAdmin = userProfile?.is_admin;
+          console.log('Navbar - is_admin value:', isAdmin, 'type:', typeof isAdmin);
+          const role = isAdmin === true ? 'admin' : 'user';
+          console.log('Navbar - Determined role:', role);
+          setUserRole(role);
+        }
       }
     };
     
@@ -34,12 +46,22 @@ const Navbar = () => {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
+        const { data: userProfile, error } = await supabase
+          .from('user_profiles')
+          .select('is_admin')
           .eq('id', session.user.id)
           .single();
-        setUserRole(profile?.role || null);
+        
+        console.log('Navbar auth change - User profile:', { userProfile, error });
+        
+        if (error) {
+          console.error('Navbar auth change - Error fetching user profile:', error);
+          setUserRole('user');
+        } else {
+          const isAdmin = userProfile?.is_admin;
+          const role = isAdmin === true ? 'admin' : 'user';
+          setUserRole(role);
+        }
       } else {
         setUserRole(null);
       }

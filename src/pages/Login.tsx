@@ -24,13 +24,15 @@ const Login = () => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
+        const { data: userProfile } = await supabase
+          .from('user_profiles')
+          .select('is_admin')
           .eq('id', session.user.id)
           .single();
         
-        if (profile?.role === 'admin') {
+        console.log('Already logged in user profile:', userProfile);
+        
+        if (userProfile?.is_admin === true) {
           navigate('/admin');
         } else {
           navigate('/dashboard');
@@ -45,12 +47,15 @@ const Login = () => {
     setLoading(true);
 
     try {
+      console.log('Attempting login for:', email, 'Admin login:', isAdminLogin);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
+        console.error('Login error:', error);
         toast({
           title: "Login Failed",
           description: error.message,
@@ -60,17 +65,34 @@ const Login = () => {
       }
 
       if (data.user) {
-        // Get user role to determine redirect
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
+        console.log('Login successful, checking user profile...');
+        
+        // Get user profile to determine role
+        const { data: userProfile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('is_admin')
           .eq('id', data.user.id)
           .single();
 
-        const userRole = profile?.role || 'user';
+        console.log('User profile after login:', { userProfile, profileError });
+
+        if (profileError) {
+          console.error('Error fetching user profile:', profileError);
+          toast({
+            title: "Profile Error",
+            description: "Could not fetch user profile. Please contact support.",
+            variant: "destructive",
+          });
+          await supabase.auth.signOut();
+          return;
+        }
+
+        const isAdmin = userProfile?.is_admin;
+        console.log('is_admin value from database:', isAdmin, 'type:', typeof isAdmin);
 
         // Check if trying to login as admin but user is not admin
-        if (isAdminLogin && userRole !== 'admin') {
+        if (isAdminLogin && isAdmin !== true) {
+          console.log('Admin login attempted but user is not admin');
           await supabase.auth.signOut();
           toast({
             title: "Access Denied",
@@ -81,7 +103,8 @@ const Login = () => {
         }
 
         // Check if trying regular login but user is admin
-        if (!isAdminLogin && userRole === 'admin') {
+        if (!isAdminLogin && isAdmin === true) {
+          console.log('Regular login attempted but user is admin');
           toast({
             title: "Admin Account Detected",
             description: "Please use admin login for admin accounts.",
@@ -92,6 +115,9 @@ const Login = () => {
           return;
         }
 
+        const userRole = isAdmin === true ? 'admin' : 'user';
+        console.log('Final determined role:', userRole);
+
         toast({
           title: "Login Successful",
           description: `Welcome back${userRole === 'admin' ? ', Admin' : ''}!`,
@@ -99,12 +125,15 @@ const Login = () => {
 
         // Redirect based on role
         if (userRole === 'admin') {
+          console.log('Redirecting to admin dashboard');
           navigate('/admin');
         } else {
+          console.log('Redirecting to user dashboard');
           navigate('/dashboard');
         }
       }
     } catch (error) {
+      console.error('Unexpected login error:', error);
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
