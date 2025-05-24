@@ -5,14 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Eye, EyeOff } from 'lucide-react';
+import { Calendar, Eye, EyeOff, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isAdminLogin, setIsAdminLogin] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -65,13 +67,38 @@ const Login = () => {
           .eq('id', data.user.id)
           .single();
 
+        const userRole = profile?.role || 'user';
+
+        // Check if trying to login as admin but user is not admin
+        if (isAdminLogin && userRole !== 'admin') {
+          await supabase.auth.signOut();
+          toast({
+            title: "Access Denied",
+            description: "You don't have admin privileges. Please use regular login.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Check if trying regular login but user is admin
+        if (!isAdminLogin && userRole === 'admin') {
+          toast({
+            title: "Admin Account Detected",
+            description: "Please use admin login for admin accounts.",
+            variant: "destructive",
+          });
+          setIsAdminLogin(true);
+          await supabase.auth.signOut();
+          return;
+        }
+
         toast({
           title: "Login Successful",
-          description: "Welcome back!",
+          description: `Welcome back${userRole === 'admin' ? ', Admin' : ''}!`,
         });
 
         // Redirect based on role
-        if (profile?.role === 'admin') {
+        if (userRole === 'admin') {
           navigate('/admin');
         } else {
           navigate('/dashboard');
@@ -98,21 +125,46 @@ const Login = () => {
             <span className="text-2xl font-bold">StumpsNSlots</span>
           </div>
           <h1 className="text-3xl font-bold mb-2">Welcome Back</h1>
-          <p className="text-muted-foreground">Sign in to book your cricket ground</p>
+          <p className="text-muted-foreground">
+            {isAdminLogin ? 'Admin login to manage the platform' : 'Sign in to book your cricket ground'}
+          </p>
         </div>
 
         <Card className="border shadow-lg">
           <CardHeader>
-            <CardTitle className="text-2xl text-center">Login</CardTitle>
+            <CardTitle className="text-2xl text-center flex items-center justify-center gap-2">
+              {isAdminLogin && <Shield className="h-6 w-6 text-amber-600" />}
+              {isAdminLogin ? 'Admin Login' : 'User Login'}
+            </CardTitle>
           </CardHeader>
           <CardContent>
+            {/* Admin Login Toggle */}
+            <div className="flex items-center space-x-2 mb-6 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <Checkbox
+                id="admin-login"
+                checked={isAdminLogin}
+                onCheckedChange={(checked) => {
+                  setIsAdminLogin(!!checked);
+                  // Clear form when switching
+                  setEmail('');
+                  setPassword('');
+                }}
+              />
+              <Label htmlFor="admin-login" className="flex items-center gap-2 cursor-pointer">
+                <Shield className="h-4 w-4 text-amber-600" />
+                Admin Login
+              </Label>
+            </div>
+
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">
+                  {isAdminLogin ? 'Admin Email' : 'Email'}
+                </Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder={isAdminLogin ? "Enter admin email" : "Enter your email"}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -148,19 +200,27 @@ const Login = () => {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full h-11" disabled={loading}>
-                {loading ? 'Signing In...' : 'Sign In'}
+              <Button 
+                type="submit" 
+                className={`w-full h-11 ${isAdminLogin ? 'bg-amber-600 hover:bg-amber-700' : ''}`}
+                disabled={loading}
+              >
+                {loading ? 'Signing In...' : isAdminLogin ? 'Sign In as Admin' : 'Sign In'}
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                Don't have an account?{' '}
-                <Link to="/register" className="text-green-600 hover:underline font-medium">
-                  Sign up here
-                </Link>
-              </p>
-            </div>
+            {!isAdminLogin && (
+              <>
+                <div className="mt-6 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Don't have an account?{' '}
+                    <Link to="/register" className="text-green-600 hover:underline font-medium">
+                      Sign up here
+                    </Link>
+                  </p>
+                </div>
+              </>
+            )}
 
             <div className="mt-4 text-center">
               <Link to="/" className="text-sm text-muted-foreground hover:underline">
@@ -169,6 +229,15 @@ const Login = () => {
             </div>
           </CardContent>
         </Card>
+
+        {isAdminLogin && (
+          <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+            <p className="text-sm text-amber-800 dark:text-amber-200 text-center">
+              <Shield className="h-4 w-4 inline mr-1" />
+              Admin access is restricted to authorized personnel only.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

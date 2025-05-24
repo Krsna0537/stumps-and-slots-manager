@@ -9,21 +9,20 @@ import { Input } from '@/components/ui/input';
 import { Search, MapPin, Star, Calendar, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/hooks/useAuth';
 
 const Dashboard = () => {
+  const { user, userRole, loading: authLoading } = useAuth('user');
   const [grounds, setGrounds] = useState<any[]>([]);
   const [filteredGrounds, setFilteredGrounds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
+    if (authLoading) return;
+    
     const fetchData = async () => {
       setLoading(true);
-      
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
       
       // Fetch grounds
       const { data: groundsData } = await supabase.from('grounds').select('*').order('created_at', { ascending: false });
@@ -34,7 +33,7 @@ const Dashboard = () => {
     };
     
     fetchData();
-  }, []);
+  }, [authLoading]);
 
   useEffect(() => {
     if (searchQuery.trim() === '') {
@@ -48,7 +47,7 @@ const Dashboard = () => {
     }
   }, [searchQuery, grounds]);
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />

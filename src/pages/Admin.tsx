@@ -8,11 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, Plus } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 const Admin = () => {
-  const [user, setUser] = useState<any>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, userRole, loading } = useAuth('admin');
   const { toast } = useToast();
 
   // Form state
@@ -30,26 +29,7 @@ const Admin = () => {
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUserAndRole = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        setUserRole(profile?.role || null);
-      }
-      setLoading(false);
-    };
-    
-    fetchUserAndRole();
-  }, []);
-
-  useEffect(() => {
-    if (userRole !== 'admin') return;
+    if (userRole !== 'admin' || !user) return;
     
     const fetchData = async () => {
       setDataLoading(true);
@@ -69,7 +49,7 @@ const Admin = () => {
     };
     
     fetchData();
-  }, [userRole]);
+  }, [userRole, user]);
 
   const handleAddGround = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,39 +115,25 @@ const Admin = () => {
     );
   }
 
-  if (!user || userRole !== 'admin') {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <main className="flex-1 flex items-center justify-center py-12">
-          <div className="container max-w-md text-center bg-white dark:bg-background rounded-lg shadow-md border p-8">
-            <Shield className="h-12 w-12 text-red-600 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold mb-4 text-red-600">Access Denied</h1>
-            <p className="text-lg mb-4">You need admin privileges to access this page.</p>
-            <p className="text-sm text-muted-foreground">Please contact the system administrator if you believe this is an error.</p>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      <main className="flex-1 py-12 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
+      <main className="flex-1 py-12 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20">
         <div className="container max-w-6xl mx-auto p-6">
           <div className="bg-white dark:bg-background rounded-lg shadow-md border p-6">
             <div className="flex items-center gap-3 mb-8">
-              <Shield className="h-8 w-8 text-green-600" />
+              <Shield className="h-8 w-8 text-amber-600" />
               <h1 className="text-3xl font-extrabold">Admin Dashboard</h1>
+              <div className="ml-auto px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium">
+                Administrator Access
+              </div>
             </div>
 
             {/* Add Ground Form */}
             <section className="mb-10">
               <div className="flex items-center gap-2 mb-6">
-                <Plus className="h-5 w-5 text-green-600" />
-                <h2 className="text-xl font-bold">Add New Ground</h2>
+                <Plus className="h-5 w-5 text-amber-600" />
+                <h2 className="text-xl font-bold">Add New Cricket Ground</h2>
               </div>
               
               <form onSubmit={handleAddGround} className="grid gap-4 md:grid-cols-2">
@@ -234,7 +200,7 @@ const Admin = () => {
                 </div>
                 
                 <div className="md:col-span-2">
-                  <Button type="submit" disabled={addLoading} className="w-full md:w-auto">
+                  <Button type="submit" disabled={addLoading} className="w-full md:w-auto bg-amber-600 hover:bg-amber-700">
                     {addLoading ? 'Adding Ground...' : 'Add Ground'}
                   </Button>
                 </div>
@@ -243,7 +209,7 @@ const Admin = () => {
 
             {/* Statistics */}
             <section className="mb-10">
-              <h2 className="text-xl font-bold mb-4">Statistics</h2>
+              <h2 className="text-xl font-bold mb-4">Platform Statistics</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-green-50 dark:bg-green-900/10 p-6 rounded-lg border border-green-100 dark:border-green-900/30">
                   <h3 className="text-lg font-semibold text-green-800 dark:text-green-200">Total Grounds</h3>
@@ -295,7 +261,7 @@ const Admin = () => {
                             {new Date(booking.booking_date).toLocaleDateString()}
                           </td>
                           <td className="border border-gray-200 p-3">
-                            {booking.start_time} - {booking.end_time}
+                            {booking.time_slot || `${booking.start_time} - ${booking.end_time}`}
                           </td>
                           <td className="border border-gray-200 p-3">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${

@@ -2,14 +2,16 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Calendar, Home, User, UserPlus, LogIn, LogOut } from 'lucide-react';
+import { Calendar, Home, User, UserPlus, LogIn, LogOut, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const Navbar = () => {
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
 
   useEffect(() => {
     const getUser = async () => {
@@ -52,6 +54,10 @@ const Navbar = () => {
     await supabase.auth.signOut();
     setUser(null);
     setUserRole(null);
+    toast({
+      title: "Logged Out",
+      description: "You have been successfully logged out.",
+    });
     navigate('/');
   };
 
@@ -77,15 +83,14 @@ const Navbar = () => {
       // Admin navigation
       return (
         <>
-          <Link to="/dashboard" className="flex items-center gap-2 text-sm hover:text-primary">
-            <Home className="w-4 h-4" />
-            Dashboard
+          <Link to="/admin" className="flex items-center gap-2 text-sm hover:text-primary">
+            <Shield className="w-4 h-4" />
+            Admin Dashboard
           </Link>
           <Link to="/grounds" className="flex items-center gap-2 text-sm hover:text-primary">
             <Calendar className="w-4 h-4" />
-            Grounds
+            Manage Grounds
           </Link>
-          <Link to="/admin" className="text-sm hover:text-primary">Admin Panel</Link>
           <Link to="/contact" className="text-sm hover:text-primary">Contact</Link>
         </>
       );
@@ -111,7 +116,7 @@ const Navbar = () => {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-2">
-          <Link to={user ? "/dashboard" : "/"} className="flex items-center gap-2">
+          <Link to={user ? (userRole === 'admin' ? "/admin" : "/dashboard") : "/"} className="flex items-center gap-2">
             <Calendar className="h-6 w-6 text-green-600" />
             <span className="text-xl font-bold">StumpsNSlots</span>
           </Link>
@@ -134,6 +139,11 @@ const Navbar = () => {
                 <LogOut className="mr-2 h-4 w-4" />
                 Logout
               </Button>
+              {userRole === 'admin' && (
+                <div className="ml-2 px-2 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-medium">
+                  Admin
+                </div>
+              )}
             </>
           ) : (
             <>
