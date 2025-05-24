@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
@@ -17,64 +16,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Skeleton } from '@/components/ui/skeleton';
-
-// Temporary grounds data - will be replaced with backend data
-const grounds = [
-  {
-    id: 1,
-    name: 'Central Cricket Stadium',
-    location: 'Downtown, City Center',
-    rating: 4.8,
-    price: 150,
-    image: 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?q=80&w=500&auto=format&fit=crop',
-    features: ['Floodlights', 'Pavilion', 'Parking'],
-  },
-  {
-    id: 2,
-    name: 'Riverside Ground',
-    location: 'Riverside Park, East Side',
-    rating: 4.5,
-    price: 120,
-    image: 'https://images.unsplash.com/photo-1562077772-3bd90403f7f0?q=80&w=500&auto=format&fit=crop',
-    features: ['Practice Nets', 'Changing Rooms', 'Cafe'],
-  },
-  {
-    id: 3,
-    name: 'Green Valley Cricket Club',
-    location: 'Green Valley, North Area',
-    rating: 4.9,
-    price: 180,
-    image: 'https://images.unsplash.com/photo-1627556592933-ffe99c1cd9eb?q=80&w=500&auto=format&fit=crop',
-    features: ['Electronic Scoreboard', 'Floodlights', 'Premium Pitch'],
-  },
-  {
-    id: 4,
-    name: 'East Park Cricket Ground',
-    location: 'East Park, South District',
-    rating: 4.3,
-    price: 110,
-    image: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?q=80&w=500&auto=format&fit=crop',
-    features: ['Practice Nets', 'Basic Amenities', 'Parking'],
-  },
-  {
-    id: 5,
-    name: 'Sunset Cricket Academy',
-    location: 'West Hills, City Outskirts',
-    rating: 4.7,
-    price: 165,
-    image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=500&auto=format&fit=crop',
-    features: ['Professional Coaching', 'Multiple Pitches', 'Video Analysis'],
-  },
-  {
-    id: 6,
-    name: 'Metropolitan Cricket Ground',
-    location: 'City Center, Main Area',
-    rating: 4.6,
-    price: 145,
-    image: 'https://images.unsplash.com/photo-1607734834519-d8576ae60ea6?q=80&w=500&auto=format&fit=crop',
-    features: ['Floodlights', 'Spectator Stands', 'Food Court'],
-  },
-];
+import { supabase } from '@/integrations/supabase/client';
 
 // Features for filtering
 const allFeatures = [
@@ -93,10 +35,22 @@ const allFeatures = [
 ];
 
 const GroundsPage = () => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [grounds, setGrounds] = useState<any[]>([]);
   const [priceRange, setPriceRange] = useState([100, 200]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+
+  // Fetch real grounds data from Supabase
+  useEffect(() => {
+    const fetchGrounds = async () => {
+      setIsLoading(true);
+      const { data } = await supabase.from('grounds').select('*');
+      setGrounds(data || []);
+      setIsLoading(false);
+    };
+    fetchGrounds();
+  }, []);
 
   const toggleFeature = (feature: string) => {
     if (selectedFeatures.includes(feature)) {
@@ -245,52 +199,42 @@ const GroundsPage = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {grounds.map(ground => (
-                <Card key={ground.id} className="overflow-hidden transition-all duration-300 hover:shadow-lg border-gray-200 dark:border-gray-800">
-                  <div className="aspect-video w-full overflow-hidden relative group">
-                    <img 
-                      src={ground.image} 
-                      alt={ground.name} 
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    />
-                    <div className="absolute top-3 right-3 bg-black/60 text-white rounded-full px-3 py-1 text-sm font-medium">
-                      ${ground.price}/hr
+              {grounds.length === 0 ? (
+                <div className="col-span-full text-center text-muted-foreground">No grounds found.</div>
+              ) : (
+                grounds.map((ground) => (
+                  <Card key={ground.id} className="overflow-hidden">
+                    <div className="aspect-video w-full">
+                      <img
+                        src={ground.image_url || '/cric.jpg'}
+                        alt={ground.name}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
-                  </div>
-                  <CardHeader>
-                    <CardTitle className="text-xl line-clamp-1">{ground.name}</CardTitle>
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <MapPin className="h-4 w-4 flex-shrink-0" />
-                      <span className="truncate">{ground.location}</span>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-1 bg-yellow-100 dark:bg-yellow-900/30 px-2 py-1 rounded text-sm">
+                    <CardHeader>
+                      <CardTitle className="text-xl font-bold">{ground.name}</CardTitle>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        {ground.location}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center gap-2 mb-2">
                         <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        <span className="font-medium">{ground.rating} Rating</span>
+                        <span>{ground.rating ? ground.rating : 'N/A'} Rating</span>
+                        <Clock className="h-4 w-4 ml-4" />
+                        <span>₹{ground.price_per_hour}/hr</span>
                       </div>
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <Clock className="h-4 w-4" />
-                        <span>2 hr min</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {ground.features.map((feature, index) => (
-                        <span key={index} className="inline-flex items-center gap-1 bg-muted/50 px-2 py-1 rounded-md text-xs">
-                          <CheckCircle className="h-3 w-3" />
-                          {feature}
-                        </span>
-                      ))}
-                    </div>
-                  </CardContent>
-                  <CardFooter>
-                    <Button className="w-full text-base" size="lg" asChild>
-                      <Link to={`/grounds/${ground.id}`}>View Details</Link>
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
+                      {/* If you have features/facilities in your schema, map them here. */}
+                    </CardContent>
+                    <CardFooter>
+                      <Button asChild className="w-full">
+                        <Link to={`/grounds/${ground.id}`}>View Details</Link>
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))
+              )}
             </div>
           )}
 

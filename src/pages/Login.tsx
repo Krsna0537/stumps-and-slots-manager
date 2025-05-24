@@ -1,14 +1,43 @@
-
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Calendar, ArrowRight } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    if (!email || !password) {
+      setError('Please enter both email and password.');
+      return;
+    }
+    setLoading(true);
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    setLoading(false);
+    if (signInError) {
+      setError(signInError.message);
+    } else {
+      setSuccess('Login successful! Redirecting...');
+      setTimeout(() => navigate('/grounds'), 1000);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -22,11 +51,11 @@ const Login = () => {
           </div>
           
           <div className="bg-white dark:bg-background border rounded-lg p-6 shadow-sm">
-            <form>
+            <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="your@email.com" />
+                  <Input id="email" type="email" placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -35,10 +64,11 @@ const Login = () => {
                       Forgot password?
                     </Link>
                   </div>
-                  <Input id="password" type="password" placeholder="••••••••" />
+                  <Input id="password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
                 </div>
-                
-                <Button className="w-full" type="submit">Sign In</Button>
+                {error && <div className="text-red-600 text-sm">{error}</div>}
+                {success && <div className="text-green-600 text-sm">{success}</div>}
+                <Button className="w-full" type="submit" disabled={loading}>{loading ? 'Signing In...' : 'Sign In'}</Button>
               </div>
             </form>
             
@@ -54,7 +84,7 @@ const Login = () => {
             </div>
             
             <div className="grid grid-cols-1 gap-4">
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full" type="button" disabled>
                 <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                   <path
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"

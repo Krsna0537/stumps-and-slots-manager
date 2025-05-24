@@ -1,6 +1,5 @@
-
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
@@ -8,8 +7,70 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Calendar, ArrowLeft } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { supabase } from '@/integrations/supabase/client';
 
 const Register = () => {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [terms, setTerms] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    if (!firstName || !lastName || !email || !password || !confirmPassword) {
+      setError('Please fill in all fields.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    if (!terms) {
+      setError('You must agree to the Terms of Service and Privacy Policy.');
+      return;
+    }
+    setLoading(true);
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { first_name: firstName, last_name: lastName }
+      }
+    });
+    if (signUpError) {
+      setLoading(false);
+      setError(signUpError.message);
+      return;
+    }
+    // Insert into user_profiles
+    const userId = data.user?.id;
+    if (userId) {
+      const { error: profileError } = await supabase.from('user_profiles').insert({
+        id: userId,
+        first_name: firstName,
+        last_name: lastName
+      });
+      setLoading(false);
+      if (profileError) {
+        setError('Account created, but failed to save profile info.');
+        return;
+      }
+      setSuccess('Registration successful! Redirecting...');
+      setTimeout(() => navigate('/grounds'), 1500);
+    } else {
+      setLoading(false);
+      setError('Registration failed. Please try again.');
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -23,27 +84,27 @@ const Register = () => {
           </div>
           
           <div className="bg-white dark:bg-background border rounded-lg p-6 shadow-sm">
-            <form>
+            <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="first-name">First Name</Label>
-                    <Input id="first-name" placeholder="John" />
+                    <Input id="first-name" placeholder="John" value={firstName} onChange={e => setFirstName(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="last-name">Last Name</Label>
-                    <Input id="last-name" placeholder="Doe" />
+                    <Input id="last-name" placeholder="Doe" value={lastName} onChange={e => setLastName(e.target.value)} />
                   </div>
                 </div>
                 
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="your@email.com" />
+                  <Input id="email" type="email" placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)} />
                 </div>
                 
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
-                  <Input id="password" type="password" placeholder="••••••••" />
+                  <Input id="password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
                   <p className="text-xs text-muted-foreground">
                     Password must be at least 8 characters long with one uppercase letter, one lowercase letter, and one number.
                   </p>
@@ -51,11 +112,11 @@ const Register = () => {
                 
                 <div className="space-y-2">
                   <Label htmlFor="confirm-password">Confirm Password</Label>
-                  <Input id="confirm-password" type="password" placeholder="••••••••" />
+                  <Input id="confirm-password" type="password" placeholder="••••••••" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <Checkbox id="terms" />
+                  <Checkbox id="terms" checked={terms} onCheckedChange={checked => setTerms(!!checked)} />
                   <Label htmlFor="terms" className="text-sm">
                     I agree to the{" "}
                     <Link to="/terms" className="text-primary hover:underline">
@@ -68,7 +129,10 @@ const Register = () => {
                   </Label>
                 </div>
                 
-                <Button className="w-full" type="submit">Create Account</Button>
+                {error && <div className="text-red-600 text-sm">{error}</div>}
+                {success && <div className="text-green-600 text-sm">{success}</div>}
+                
+                <Button className="w-full" type="submit" disabled={loading}>{loading ? 'Creating Account...' : 'Create Account'}</Button>
               </div>
             </form>
             
@@ -84,7 +148,7 @@ const Register = () => {
             </div>
             
             <div className="grid grid-cols-1 gap-4">
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full" type="button" disabled>
                 <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                   <path
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
