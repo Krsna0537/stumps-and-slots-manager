@@ -1,3 +1,4 @@
+
 import React from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
@@ -19,10 +20,16 @@ const Contact = () => {
           <div className="flex flex-col items-center mb-8">
             <Users className="h-12 w-12 text-green-600 mb-2" />
             <h1 className="text-3xl md:text-4xl font-extrabold mb-2 text-center">Contact Us</h1>
-            <p className="text-lg text-muted-foreground text-center mb-4">We are the team behind StumpsNSlots. Reach out to us for any queries or feedback!</p>
+            <p className="text-lg text-muted-foreground text-center mb-4">
+              We are the development team behind StumpsNSlots cricket ground reservation system.
+            </p>
           </div>
+          
           <div className="mb-8">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><User className="h-5 w-5 text-green-500" /> Team Members</h2>
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <User className="h-5 w-5 text-green-500" /> 
+              Development Team
+            </h2>
             <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {team.map((member, idx) => (
                 <li key={idx} className="p-4 rounded-lg bg-green-50 dark:bg-green-900/10 flex flex-col items-center border border-green-100 dark:border-green-900/30">
@@ -32,16 +39,32 @@ const Contact = () => {
               ))}
             </ul>
           </div>
+          
           <div className="mb-6 flex flex-col md:flex-row gap-6 justify-center items-center">
-            <a href="https://github.com/Krsna0537/cricket-arena-pro.git" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-base font-medium text-green-700 hover:underline">
-              <Github className="h-5 w-5" /> GitHub Repository
+            <a 
+              href="https://github.com/Krsna0537/cricket-arena-pro.git" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="flex items-center gap-2 text-base font-medium text-green-700 hover:underline"
+            >
+              <Github className="h-5 w-5" /> 
+              GitHub Repository
             </a>
-            <a href="mailto:pmesta246@gmail.com" className="flex items-center gap-2 text-base font-medium text-green-700 hover:underline">
-              <Mail className="h-5 w-5" /> pmesta246@gmail.com
+            <a 
+              href="mailto:pmesta246@gmail.com" 
+              className="flex items-center gap-2 text-base font-medium text-green-700 hover:underline"
+            >
+              <Mail className="h-5 w-5" /> 
+              pmesta246@gmail.com
             </a>
           </div>
+          
           <div className="flex justify-center mt-8">
-            <img src="/cric.jpg" alt="Cricket" className="h-32 w-auto rounded-xl shadow-lg border-2 border-green-200" />
+            <img 
+              src="/cric.jpg" 
+              alt="Cricket Ground" 
+              className="h-32 w-auto rounded-xl shadow-lg border-2 border-green-200" 
+            />
           </div>
         </div>
       </main>
@@ -50,4 +73,4 @@ const Contact = () => {
   );
 };
 
-export default Contact; 
+export default Contact;

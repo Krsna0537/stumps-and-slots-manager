@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -6,17 +7,41 @@ import { supabase } from '@/integrations/supabase/client';
 
 const Navbar = () => {
   const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     const getUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+        setUserRole(profile?.role || null);
+      }
     };
+    
     getUser();
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+        setUserRole(profile?.role || null);
+      } else {
+        setUserRole(null);
+      }
     });
+    
     return () => {
       listener?.subscription.unsubscribe();
     };
@@ -25,6 +50,7 @@ const Navbar = () => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setUserRole(null);
     navigate('/');
   };
 
@@ -47,7 +73,6 @@ const Navbar = () => {
             <Calendar className="w-4 h-4" />
             Grounds
           </Link>
-          <Link to="/about" className="text-sm hover:text-primary">About</Link>
           <Link to="/contact" className="text-sm hover:text-primary">Contact</Link>
         </nav>
 
@@ -60,11 +85,13 @@ const Navbar = () => {
                   Profile
                 </Link>
               </Button>
-              <Button variant="outline" asChild>
-                <Link to="/admin">
-                  Admin
-                </Link>
-              </Button>
+              {userRole === 'admin' && (
+                <Button variant="outline" asChild>
+                  <Link to="/admin">
+                    Admin
+                  </Link>
+                </Button>
+              )}
               <Button variant="destructive" onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Logout
@@ -82,11 +109,6 @@ const Navbar = () => {
                 <Link to="/register">
                   <UserPlus className="mr-2 h-4 w-4" />
                   Register
-                </Link>
-              </Button>
-              <Button variant="outline" asChild>
-                <Link to="/admin">
-                  Admin
                 </Link>
               </Button>
             </>
