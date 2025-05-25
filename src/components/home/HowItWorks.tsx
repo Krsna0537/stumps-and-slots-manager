@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Search, Calendar, CreditCard, CheckCircle } from 'lucide-react';
 
@@ -53,24 +52,6 @@ const HowItWorks = () => {
               <p className="text-muted-foreground">{step.description}</p>
             </div>
           ))}
-        </div>
-
-        <div className="mt-16 max-w-3xl mx-auto bg-white dark:bg-background border rounded-lg p-8">
-          <h3 className="text-2xl font-semibold mb-4 text-center">Need Help?</h3>
-          <p className="text-muted-foreground text-center mb-6">
-            Our team is available to help you with any questions you may have about booking cricket grounds.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">Email:</span>
-              <a href="mailto:help@stumpsnslots.com" className="text-primary hover:underline">help@stumpsnslots.com</a>
-            </div>
-            <div className="hidden sm:block text-muted-foreground">|</div>
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">Phone:</span>
-              <a href="tel:+11234567890" className="text-primary hover:underline">+1 (123) 456-7890</a>
-            </div>
-          </div>
         </div>
       </div>
     </section>

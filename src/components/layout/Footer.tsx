@@ -1,7 +1,7 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const Footer = () => {
   const year = new Date().getFullYear();
@@ -9,7 +9,7 @@ const Footer = () => {
   return (
     <footer className="border-t bg-background">
       <div className="container py-8 md:py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
             <Link to="/" className="flex items-center gap-2 mb-4">
               <Calendar className="h-6 w-6 text-green-600" />
@@ -39,15 +39,6 @@ const Footer = () => {
               <li><Link to="/help" className="text-sm text-muted-foreground hover:text-foreground">Help Center</Link></li>
             </ul>
           </div>
-
-          <div>
-            <h3 className="font-semibold mb-4">Contact Us</h3>
-            <ul className="space-y-2">
-              <li className="text-sm text-muted-foreground">Email: info@stumpsnslots.com</li>
-              <li className="text-sm text-muted-foreground">Phone: +1 (123) 456-7890</li>
-              <li className="text-sm text-muted-foreground">Address: 123 Cricket Ave, Sports City</li>
-            </ul>
-          </div>
         </div>
 
         <div className="border-t mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
@@ -55,6 +46,9 @@ const Footer = () => {
             © {year} StumpsNSlots. All rights reserved.
           </p>
           <div className="flex items-center gap-4 mt-4 md:mt-0">
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/contact">Contact Us</Link>
+            </Button>
             <a href="#" className="text-muted-foreground hover:text-foreground">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
             </a>

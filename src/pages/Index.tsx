@@ -1,11 +1,8 @@
-
 import React from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import Hero from '@/components/home/Hero';
-import FeaturedGrounds from '@/components/home/FeaturedGrounds';
-import HowItWorks from '@/components/home/HowItWorks';
-import Testimonials from '@/components/home/Testimonials';
+import AboutSection from '@/components/home/AboutSection';
 
 const Index = () => {
   return (
@@ -13,9 +10,7 @@ const Index = () => {
       <Navbar />
       <main className="flex-1">
         <Hero />
-        <FeaturedGrounds />
-        <HowItWorks />
-        <Testimonials />
+        <AboutSection />
       </main>
       <Footer />
     </div>

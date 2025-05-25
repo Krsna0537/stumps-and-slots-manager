@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -35,11 +34,31 @@ const Profile = () => {
       
       setUser(user);
       
-      const { data } = await supabase
-        .from('profiles')
+      const { data, error } = await supabase
+        .from('user_profiles')
         .select('*')
         .eq('id', user.id)
         .single();
+      
+      if (error) {
+        if (error.code === 'PGRST116') {
+          toast({
+            title: "Profile Not Found",
+            description: "No profile found for this user. Please contact support or register again.",
+            variant: "destructive",
+          });
+          navigate('/login');
+          return;
+        } else {
+          toast({
+            title: "Profile Error",
+            description: "Could not fetch user profile. Please contact support.",
+            variant: "destructive",
+          });
+          navigate('/login');
+          return;
+        }
+      }
       
       setProfile(data);
       setFirstName(data?.first_name || '');
@@ -55,7 +74,7 @@ const Profile = () => {
     
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .update({
           first_name: firstName,
           last_name: lastName

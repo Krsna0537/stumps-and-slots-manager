@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Search, Star, MapPin, Calendar, Filter, Clock, CheckCircle } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -40,6 +40,8 @@ const GroundsPage = () => {
   const [priceRange, setPriceRange] = useState([100, 200]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+  const [user, setUser] = useState<any>(null);
+  const navigate = useNavigate();
 
   // Fetch real grounds data from Supabase
   useEffect(() => {
@@ -50,6 +52,8 @@ const GroundsPage = () => {
       setIsLoading(false);
     };
     fetchGrounds();
+    // Fetch user
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
   }, []);
 
   const toggleFeature = (feature: string) => {
@@ -228,8 +232,14 @@ const GroundsPage = () => {
                       {/* If you have features/facilities in your schema, map them here. */}
                     </CardContent>
                     <CardFooter>
-                      <Button asChild className="w-full">
-                        <Link to={`/grounds/${ground.id}`}>View Details</Link>
+                      <Button className="w-full" onClick={() => {
+                        if (user) {
+                          navigate(`/grounds/${ground.id}`);
+                        } else {
+                          navigate('/login', { state: { from: `/grounds/${ground.id}` } });
+                        }
+                      }}>
+                        View Details
                       </Button>
                     </CardFooter>
                   </Card>

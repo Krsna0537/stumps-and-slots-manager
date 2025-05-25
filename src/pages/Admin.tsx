@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
@@ -38,7 +37,7 @@ const Admin = () => {
         supabase.from('grounds').select('*').order('created_at', { ascending: false }),
         supabase.from('bookings').select(`
           *,
-          profiles:user_id (first_name, last_name),
+          user_profiles:user_id (first_name, last_name),
           grounds:ground_id (name)
         `).order('created_at', { ascending: false })
       ]);
@@ -255,7 +254,7 @@ const Admin = () => {
                             {booking.grounds?.name || 'Unknown Ground'}
                           </td>
                           <td className="border border-gray-200 p-3">
-                            {booking.profiles?.first_name} {booking.profiles?.last_name}
+                            {booking.user_profiles?.first_name} {booking.user_profiles?.last_name}
                           </td>
                           <td className="border border-gray-200 p-3">
                             {new Date(booking.booking_date).toLocaleDateString()}

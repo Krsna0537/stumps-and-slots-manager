@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -107,30 +106,20 @@ const GroundDetail = () => {
       const { start_time, end_time } = parseTimeSlot(timeSlot);
       const total_price = calculateTotalPrice(timeSlot, ground.price_per_hour);
       
-      const { error } = await supabase.from('bookings').insert({
-        user_id: user.id,
-        ground_id: ground.id,
-        booking_date: date,
-        start_time,
-        end_time,
-        total_price,
-        status: 'pending'
+      // Redirect to payment page with booking details
+      navigate('/payment', {
+        state: {
+          bookingDetails: {
+            user_id: user.id,
+            ground_id: ground.id,
+            date,
+            time_slot: timeSlot,
+            start_time,
+            end_time,
+            total_price,
+          }
+        }
       });
-      
-      if (error) {
-        toast({
-          title: "Booking Failed",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Booking Successful!",
-          description: "Your booking has been submitted successfully.",
-        });
-        setDate("");
-        setTimeSlot("");
-      }
     } catch (error) {
       toast({
         title: "Error",

@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,93 +17,105 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    // Check if user is already logged in
+    // Only check session if we're not already on the login page
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { data: userProfile } = await supabase
+        const { data: userProfile, error: profileError } = await supabase
           .from('user_profiles')
           .select('is_admin')
           .eq('id', session.user.id)
           .single();
         
-        console.log('Already logged in user profile:', userProfile);
+        if (profileError) {
+          if (profileError.code === 'PGRST116') {
+            toast({
+              title: "Profile Not Found",
+              description: "No profile found for this user. Please contact support or register again.",
+              variant: "destructive",
+            });
+            await supabase.auth.signOut();
+            return;
+          }
+          return;
+        }
+
+        const isAdmin = userProfile?.is_admin;
+        const userRole = isAdmin === true ? 'admin' : 'user';
+
+        // Get the intended destination from location state or default to appropriate dashboard
+        const from = location.state?.from || (userRole === 'admin' ? '/admin' : '/dashboard');
         
-        if (userProfile?.is_admin === true) {
-          navigate('/admin');
-        } else {
-          navigate('/dashboard');
+        // Only redirect if we're not already on the login page
+        if (location.pathname === '/login') {
+          navigate(from, { replace: true });
         }
       }
     };
     checkUser();
-  }, [navigate]);
+  }, [navigate, location, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      console.log('Attempting login for:', email, 'Admin login:', isAdminLogin);
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        console.error('Login error:', error);
         toast({
           title: "Login Failed",
           description: error.message,
           variant: "destructive",
         });
+        setLoading(false);
         return;
       }
 
       if (data.user) {
-        console.log('Login successful, checking user profile...');
-        
-        // Get user profile to determine role
         const { data: userProfile, error: profileError } = await supabase
           .from('user_profiles')
           .select('is_admin')
           .eq('id', data.user.id)
           .single();
 
-        console.log('User profile after login:', { userProfile, profileError });
-
         if (profileError) {
-          console.error('Error fetching user profile:', profileError);
-          toast({
-            title: "Profile Error",
-            description: "Could not fetch user profile. Please contact support.",
-            variant: "destructive",
-          });
-          await supabase.auth.signOut();
+          if (profileError.code === 'PGRST116') {
+            toast({
+              title: "Profile Not Found",
+              description: "No profile found for this user. Please contact support or register again.",
+              variant: "destructive",
+            });
+            await supabase.auth.signOut();
+            setLoading(false);
+            return;
+          }
+          setLoading(false);
           return;
         }
 
         const isAdmin = userProfile?.is_admin;
-        console.log('is_admin value from database:', isAdmin, 'type:', typeof isAdmin);
 
         // Check if trying to login as admin but user is not admin
         if (isAdminLogin && isAdmin !== true) {
-          console.log('Admin login attempted but user is not admin');
           await supabase.auth.signOut();
           toast({
             title: "Access Denied",
             description: "You don't have admin privileges. Please use regular login.",
             variant: "destructive",
           });
+          setLoading(false);
           return;
         }
 
         // Check if trying regular login but user is admin
         if (!isAdminLogin && isAdmin === true) {
-          console.log('Regular login attempted but user is admin');
           toast({
             title: "Admin Account Detected",
             description: "Please use admin login for admin accounts.",
@@ -112,25 +123,19 @@ const Login = () => {
           });
           setIsAdminLogin(true);
           await supabase.auth.signOut();
+          setLoading(false);
           return;
         }
 
         const userRole = isAdmin === true ? 'admin' : 'user';
-        console.log('Final determined role:', userRole);
+        const from = location.state?.from || (userRole === 'admin' ? '/admin' : '/dashboard');
 
         toast({
           title: "Login Successful",
           description: `Welcome back${userRole === 'admin' ? ', Admin' : ''}!`,
         });
 
-        // Redirect based on role
-        if (userRole === 'admin') {
-          console.log('Redirecting to admin dashboard');
-          navigate('/admin');
-        } else {
-          console.log('Redirecting to user dashboard');
-          navigate('/dashboard');
-        }
+        navigate(from, { replace: true });
       }
     } catch (error) {
       console.error('Unexpected login error:', error);
@@ -174,7 +179,6 @@ const Login = () => {
                 checked={isAdminLogin}
                 onCheckedChange={(checked) => {
                   setIsAdminLogin(!!checked);
-                  // Clear form when switching
                   setEmail('');
                   setPassword('');
                 }}
@@ -239,16 +243,14 @@ const Login = () => {
             </form>
 
             {!isAdminLogin && (
-              <>
-                <div className="mt-6 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    Don't have an account?{' '}
-                    <Link to="/register" className="text-green-600 hover:underline font-medium">
-                      Sign up here
-                    </Link>
-                  </p>
-                </div>
-              </>
+              <div className="mt-6 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Don't have an account?{' '}
+                  <Link to="/register" className="text-green-600 hover:underline font-medium">
+                    Sign up here
+                  </Link>
+                </p>
+              </div>
             )}
 
             <div className="mt-4 text-center">

@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -9,6 +8,7 @@ export const useAuth = (requiredRole?: 'admin' | 'user') => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -17,53 +17,43 @@ export const useAuth = (requiredRole?: 'admin' | 'user') => {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (!session?.user) {
-          console.log('No session found');
           setLoading(false);
           if (requiredRole) {
-            toast({
-              title: "Access Denied",
-              description: "Please log in to access this page.",
-              variant: "destructive",
-            });
-            navigate('/login');
+            // Only redirect if we're not already on the login page
+            if (location.pathname !== '/login') {
+              toast({
+                title: "Access Denied",
+                description: "Please log in to access this page.",
+                variant: "destructive",
+              });
+              navigate('/login', { state: { from: location.pathname } });
+            }
           }
           return;
         }
 
-        console.log('Session user:', session.user);
         setUser(session.user);
         
-        // Check user_profiles table for is_admin flag
         const { data: userProfile, error } = await supabase
           .from('user_profiles')
-          .select('is_admin')
+          .select('*')
           .eq('id', session.user.id)
           .single();
         
-        console.log('User profile query result:', { userProfile, error });
-        
         if (error) {
-          console.error('Error fetching user profile:', error);
-          // Fallback to regular user if profile not found
-          const role = 'user';
-          setUserRole(role);
+          if (error.code === 'PGRST116') {
+            setUserRole('user');
+          } else {
+            console.error('Error fetching user profile:', error);
+            setUserRole('user');
+          }
         } else {
-          // Convert boolean to role string
           const isAdmin = userProfile?.is_admin;
-          console.log('is_admin value:', isAdmin, 'type:', typeof isAdmin);
-          
           const role = isAdmin === true ? 'admin' : 'user';
-          console.log('Determined role:', role);
           setUserRole(role);
-        }
 
-        // Check role requirements after setting userRole
-        setTimeout(() => {
-          const currentRole = userProfile?.is_admin === true ? 'admin' : 'user';
-          console.log('Checking role requirements:', { requiredRole, currentRole });
-          
-          if (requiredRole && currentRole !== requiredRole) {
-            console.log('Role mismatch, redirecting...');
+          // Check role requirements
+          if (requiredRole && role !== requiredRole) {
             toast({
               title: "Access Denied",
               description: `You need ${requiredRole} privileges to access this page.`,
@@ -71,14 +61,13 @@ export const useAuth = (requiredRole?: 'admin' | 'user') => {
             });
             
             // Redirect based on actual role
-            if (currentRole === 'admin') {
-              navigate('/admin');
+            if (role === 'admin') {
+              navigate('/admin', { replace: true });
             } else {
-              navigate('/dashboard');
+              navigate('/dashboard', { replace: true });
             }
-            return;
           }
-        }, 100);
+        }
 
         setLoading(false);
       } catch (error) {
@@ -92,49 +81,46 @@ export const useAuth = (requiredRole?: 'admin' | 'user') => {
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       try {
         if (!session?.user) {
-          console.log('Auth state change: No user');
           setUser(null);
           setUserRole(null);
           if (requiredRole) {
-            navigate('/login');
+            // Only redirect if we're not already on the login page
+            if (location.pathname !== '/login') {
+              navigate('/login', { state: { from: location.pathname } });
+            }
           }
           return;
         }
 
-        console.log('Auth state change: User found:', session.user);
         setUser(session.user);
         
         const { data: userProfile, error } = await supabase
           .from('user_profiles')
-          .select('is_admin')
+          .select('*')
           .eq('id', session.user.id)
           .single();
         
-        console.log('Auth state change - User profile:', { userProfile, error });
-        
         if (error) {
-          console.error('Auth state change - Error fetching user profile:', error);
-          setUserRole('user');
+          if (error.code === 'PGRST116') {
+            setUserRole('user');
+          } else {
+            console.error('Error fetching user profile:', error);
+            setUserRole('user');
+          }
         } else {
           const isAdmin = userProfile?.is_admin;
-          console.log('Auth state change - is_admin value:', isAdmin, 'type:', typeof isAdmin);
-          
           const role = isAdmin === true ? 'admin' : 'user';
-          console.log('Auth state change - Determined role:', role);
           setUserRole(role);
-        }
 
-        // Check role requirements
-        setTimeout(() => {
-          const currentRole = userProfile?.is_admin === true ? 'admin' : 'user';
-          if (requiredRole && currentRole !== requiredRole) {
-            if (currentRole === 'admin') {
-              navigate('/admin');
+          // Check role requirements
+          if (requiredRole && role !== requiredRole) {
+            if (role === 'admin') {
+              navigate('/admin', { replace: true });
             } else {
-              navigate('/dashboard');
+              navigate('/dashboard', { replace: true });
             }
           }
-        }, 100);
+        }
       } catch (error) {
         console.error('Error in auth state change:', error);
       }
@@ -143,7 +129,7 @@ export const useAuth = (requiredRole?: 'admin' | 'user') => {
     return () => {
       listener?.subscription.unsubscribe();
     };
-  }, [requiredRole, navigate, toast]);
+  }, [requiredRole, navigate, location, toast]);
 
   return { user, userRole, loading };
 };
