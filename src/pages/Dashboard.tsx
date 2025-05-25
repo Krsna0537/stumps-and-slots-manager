@@ -6,10 +6,12 @@ import Footer from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, MapPin, Star, Calendar, Clock, History } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Search, MapPin, Star, Calendar, Clock, History, Filter, Bell } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
+import { Badge } from '@/components/ui/badge';
 
 const Dashboard = () => {
   const { user, userRole, loading: authLoading } = useAuth('user');
@@ -18,6 +20,9 @@ const Dashboard = () => {
   const [filteredGrounds, setFilteredGrounds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [locationFilter, setLocationFilter] = useState('all');
+  const [priceFilter, setPriceFilter] = useState('all');
+  const [notifications, setNotifications] = useState<any[]>([]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -39,21 +44,34 @@ const Dashboard = () => {
           setFilteredGrounds(groundsData || []);
         }
 
-        // Fetch user's bookings
+        // Fetch user's bookings and notifications if logged in
         if (user) {
-          const { data: bookingsData, error: bookingsError } = await supabase
-            .from('bookings')
-            .select(`
-              *,
-              grounds:ground_id (name, location, image_url)
-            `)
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
+          const [bookingsResponse, notificationsResponse] = await Promise.all([
+            supabase
+              .from('bookings')
+              .select(`
+                *,
+                grounds:ground_id (name, location, image_url)
+              `)
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: false })
+              .limit(3),
+            
+            supabase
+              .from('notifications')
+              .select('*')
+              .eq('user_id', user.id)
+              .eq('is_read', false)
+              .order('created_at', { ascending: false })
+              .limit(5)
+          ]);
 
-          if (bookingsError) {
-            console.error('Error fetching bookings:', bookingsError);
-          } else {
-            setBookings(bookingsData || []);
+          if (!bookingsResponse.error) {
+            setBookings(bookingsResponse.data || []);
+          }
+          
+          if (!notificationsResponse.error) {
+            setNotifications(notificationsResponse.data || []);
           }
         }
       } catch (error) {
@@ -67,16 +85,52 @@ const Dashboard = () => {
   }, [authLoading, user]);
 
   useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredGrounds(grounds);
-    } else {
-      const filtered = grounds.filter(ground =>
+    let filtered = grounds;
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(ground =>
         ground.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         ground.location.toLowerCase().includes(searchQuery.toLowerCase())
       );
-      setFilteredGrounds(filtered);
     }
-  }, [searchQuery, grounds]);
+
+    // Apply location filter
+    if (locationFilter !== 'all') {
+      filtered = filtered.filter(ground =>
+        ground.location.toLowerCase().includes(locationFilter.toLowerCase())
+      );
+    }
+
+    // Apply price filter
+    if (priceFilter !== 'all') {
+      if (priceFilter === 'low') {
+        filtered = filtered.filter(ground => ground.price_per_hour <= 500);
+      } else if (priceFilter === 'medium') {
+        filtered = filtered.filter(ground => ground.price_per_hour > 500 && ground.price_per_hour <= 1000);
+      } else if (priceFilter === 'high') {
+        filtered = filtered.filter(ground => ground.price_per_hour > 1000);
+      }
+    }
+
+    setFilteredGrounds(filtered);
+  }, [searchQuery, locationFilter, priceFilter, grounds]);
+
+  const getUniqueLocations = () => {
+    const locations = grounds.map(ground => ground.location);
+    return [...new Set(locations)];
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors: { [key: string]: string } = {
+      pending: 'bg-yellow-100 text-yellow-800',
+      confirmed: 'bg-green-100 text-green-800',
+      rejected: 'bg-red-100 text-red-800',
+      cancelled: 'bg-gray-100 text-gray-800',
+      completed: 'bg-blue-100 text-blue-800'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  };
 
   if (authLoading || loading) {
     return (
@@ -126,6 +180,27 @@ const Dashboard = () => {
             <p className="text-muted-foreground text-lg">Find and book the perfect cricket ground for your next game</p>
           </div>
 
+          {/* Notifications Alert */}
+          {notifications.length > 0 && (
+            <Card className="mb-8 border-blue-200 bg-blue-50">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <Bell className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="font-medium text-blue-900 mb-1">You have {notifications.length} new notification{notifications.length > 1 ? 's' : ''}</h3>
+                    <p className="text-sm text-blue-700">{notifications[0]?.message}</p>
+                    {notifications.length > 1 && (
+                      <p className="text-xs text-blue-600 mt-1">+{notifications.length - 1} more...</p>
+                    )}
+                  </div>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to="/profile">View All</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* My Bookings Section */}
           {bookings.length > 0 && (
             <div className="bg-white dark:bg-background border rounded-lg p-6 shadow-sm mb-8">
@@ -134,11 +209,18 @@ const Dashboard = () => {
                 <h2 className="text-xl font-bold">My Recent Bookings</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {bookings.slice(0, 3).map((booking) => (
+                {bookings.map((booking) => (
                   <Card key={booking.id} className="overflow-hidden">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">{booking.grounds?.name}</CardTitle>
-                      <p className="text-sm text-muted-foreground">{booking.grounds?.location}</p>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-lg">{booking.grounds?.name}</CardTitle>
+                          <p className="text-sm text-muted-foreground">{booking.grounds?.location}</p>
+                        </div>
+                        <Badge className={getStatusColor(booking.status)}>
+                          {booking.status}
+                        </Badge>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
@@ -150,40 +232,55 @@ const Dashboard = () => {
                           <Clock className="h-4 w-4" />
                           {booking.start_time} - {booking.end_time}
                         </div>
-                        <div className="text-sm font-medium">
-                          Status: <span className={`${
-                            booking.status === 'confirmed' ? 'text-green-600' :
-                            booking.status === 'pending' ? 'text-yellow-600' :
-                            'text-red-600'
-                          }`}>
-                            {booking.status}
-                          </span>
-                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
-              {bookings.length > 3 && (
-                <div className="mt-4 text-center">
-                  <Button variant="outline" asChild>
-                    <Link to="/profile">View All Bookings</Link>
-                  </Button>
-                </div>
-              )}
+              <div className="mt-4 text-center">
+                <Button variant="outline" asChild>
+                  <Link to="/profile">View All Bookings</Link>
+                </Button>
+              </div>
             </div>
           )}
 
-          {/* Search Section */}
+          {/* Search and Filter Section */}
           <div className="bg-white dark:bg-background border rounded-lg p-6 shadow-sm mb-8">
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
-              <Input
-                placeholder="Search grounds by name or location..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-12 text-base"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="relative md:col-span-2">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
+                <Input
+                  placeholder="Search grounds by name or location..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 h-12 text-base"
+                />
+              </div>
+              
+              <Select value={locationFilter} onValueChange={setLocationFilter}>
+                <SelectTrigger className="h-12">
+                  <SelectValue placeholder="Filter by location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Locations</SelectItem>
+                  {getUniqueLocations().map((location) => (
+                    <SelectItem key={location} value={location}>{location}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={priceFilter} onValueChange={setPriceFilter}>
+                <SelectTrigger className="h-12">
+                  <SelectValue placeholder="Filter by price" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Prices</SelectItem>
+                  <SelectItem value="low">₹0 - ₹500</SelectItem>
+                  <SelectItem value="medium">₹500 - ₹1000</SelectItem>
+                  <SelectItem value="high">₹1000+</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -193,7 +290,7 @@ const Dashboard = () => {
               <CardContent className="p-6 text-center">
                 <Calendar className="h-8 w-8 text-green-600 mx-auto mb-2" />
                 <h3 className="font-semibold text-lg">Available Grounds</h3>
-                <p className="text-3xl font-bold text-green-600">{grounds.length}</p>
+                <p className="text-3xl font-bold text-green-600">{filteredGrounds.length}</p>
               </CardContent>
             </Card>
             <Card>
@@ -215,7 +312,9 @@ const Dashboard = () => {
           {/* Search Results */}
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">
-              {searchQuery ? `Search Results (${filteredGrounds.length})` : 'Available Grounds'}
+              {searchQuery || locationFilter !== 'all' || priceFilter !== 'all' 
+                ? `Search Results (${filteredGrounds.length})` 
+                : 'Available Grounds'}
             </h2>
             <Button variant="outline" asChild>
               <Link to="/grounds">View All Grounds</Link>
@@ -226,11 +325,21 @@ const Dashboard = () => {
           {filteredGrounds.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-muted-foreground text-lg">
-                {searchQuery ? 'No grounds found matching your search.' : 'No grounds available at the moment.'}
+                {searchQuery || locationFilter !== 'all' || priceFilter !== 'all' 
+                  ? 'No grounds found matching your criteria.' 
+                  : 'No grounds available at the moment.'}
               </div>
-              {searchQuery && (
-                <Button variant="outline" onClick={() => setSearchQuery('')} className="mt-4">
-                  Clear Search
+              {(searchQuery || locationFilter !== 'all' || priceFilter !== 'all') && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSearchQuery('');
+                    setLocationFilter('all');
+                    setPriceFilter('all');
+                  }} 
+                  className="mt-4"
+                >
+                  Clear Filters
                 </Button>
               )}
             </div>

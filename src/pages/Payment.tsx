@@ -5,8 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, CreditCard, Banknote, Smartphone } from 'lucide-react';
+import { Loader2, CreditCard, Banknote, Smartphone, Info } from 'lucide-react';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 const Payment = () => {
   const { state } = useLocation();
@@ -16,6 +17,7 @@ const Payment = () => {
   const [error, setError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const bookingDetails = state?.bookingDetails;
 
@@ -31,7 +33,6 @@ const Payment = () => {
 
   // Helper function to parse time slot and extract start_time and end_time
   const parseTimeSlot = (timeSlot: string) => {
-    // Assuming time_slot format is "HH:MM - HH:MM" (e.g., "09:00 - 10:00")
     const [startTime, endTime] = timeSlot.split(' - ');
     return {
       start_time: startTime,
@@ -43,10 +44,9 @@ const Payment = () => {
     setLoading(true);
     setError('');
     try {
-      // Parse the time slot to get start_time and end_time
       const { start_time, end_time } = parseTimeSlot(bookingDetails.time_slot);
 
-      // 1. Create booking
+      // Create booking in "pending" status
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .insert({
@@ -58,7 +58,7 @@ const Payment = () => {
           start_time: start_time,
           end_time: end_time,
           total_price: bookingDetails.total_price,
-          status: 'confirmed',
+          status: 'pending', // Changed from 'confirmed' to 'pending'
         })
         .select()
         .single();
@@ -72,7 +72,7 @@ const Payment = () => {
 
       setBookingId(booking.id);
 
-      // 2. Create payment
+      // Create payment record
       const { error: paymentError } = await supabase
         .from('payments')
         .insert({
@@ -89,6 +89,11 @@ const Payment = () => {
         setLoading(false);
         return;
       }
+
+      toast({
+        title: "Booking Submitted!",
+        description: "Your booking has been submitted and is pending admin approval.",
+      });
 
       setShowSuccess(true);
     } catch (err) {
@@ -114,6 +119,19 @@ const Payment = () => {
       <Card className="p-6">
         <h2 className="text-2xl font-bold mb-6">Complete Your Booking</h2>
         
+        {/* Booking Notice */}
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div>
+              <h3 className="font-medium text-blue-900">Booking Approval Process</h3>
+              <p className="text-sm text-blue-700 mt-1">
+                Your booking will be submitted for admin approval. You'll receive a notification once it's been reviewed.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Booking Summary */}
         <div className="mb-8 p-4 bg-gray-50 rounded-lg">
           <h3 className="font-semibold mb-3">Booking Summary</h3>
@@ -165,7 +183,7 @@ const Payment = () => {
               Processing Payment...
             </>
           ) : (
-            'Confirm Payment'
+            'Submit Booking for Approval'
           )}
         </Button>
       </Card>
@@ -174,13 +192,14 @@ const Payment = () => {
       <Dialog open={showSuccess} onOpenChange={setShowSuccess}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Payment Successful!</DialogTitle>
+            <DialogTitle>Booking Submitted Successfully!</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <p className="mb-4">Your booking has been confirmed and payment has been processed successfully.</p>
+            <p className="mb-4">Your booking has been submitted and payment has been processed. It's now pending admin approval.</p>
             <div className="space-y-2">
               <p><span className="font-medium">Booking ID:</span> {bookingId}</p>
               <p><span className="font-medium">Amount Paid:</span> ₹{bookingDetails.total_price}</p>
+              <p><span className="font-medium">Status:</span> Pending Approval</p>
             </div>
           </div>
           <div className="flex justify-end space-x-2">
