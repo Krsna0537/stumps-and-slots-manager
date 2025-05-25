@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,10 +29,23 @@ const Payment = () => {
     );
   }
 
+  // Helper function to parse time slot and extract start_time and end_time
+  const parseTimeSlot = (timeSlot: string) => {
+    // Assuming time_slot format is "HH:MM - HH:MM" (e.g., "09:00 - 10:00")
+    const [startTime, endTime] = timeSlot.split(' - ');
+    return {
+      start_time: startTime,
+      end_time: endTime
+    };
+  };
+
   const handleConfirmPayment = async () => {
     setLoading(true);
     setError('');
     try {
+      // Parse the time slot to get start_time and end_time
+      const { start_time, end_time } = parseTimeSlot(bookingDetails.time_slot);
+
       // 1. Create booking
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
@@ -39,7 +53,10 @@ const Payment = () => {
           ground_id: bookingDetails.ground_id,
           user_id: bookingDetails.user_id,
           booking_date: bookingDetails.date,
+          date: bookingDetails.date,
           time_slot: bookingDetails.time_slot,
+          start_time: start_time,
+          end_time: end_time,
           total_price: bookingDetails.total_price,
           status: 'confirmed',
         })
@@ -47,6 +64,7 @@ const Payment = () => {
         .single();
 
       if (bookingError || !booking) {
+        console.error('Booking error:', bookingError);
         setError('Failed to create booking. Please try again.');
         setLoading(false);
         return;
@@ -66,6 +84,7 @@ const Payment = () => {
         });
 
       if (paymentError) {
+        console.error('Payment error:', paymentError);
         setError('Failed to record payment. Please contact support.');
         setLoading(false);
         return;
@@ -73,6 +92,7 @@ const Payment = () => {
 
       setShowSuccess(true);
     } catch (err) {
+      console.error('Unexpected error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -177,4 +197,4 @@ const Payment = () => {
   );
 };
 
-export default Payment; 
+export default Payment;
