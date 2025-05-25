@@ -1,14 +1,10 @@
+
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Calendar, Home, User, UserPlus, LogIn, LogOut, Shield, Menu } from 'lucide-react';
+import { Calendar, Home, User, UserPlus, LogIn, LogOut, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 
 const Navbar = () => {
   const [user, setUser] = useState(null);
@@ -32,12 +28,8 @@ const Navbar = () => {
             .single();
           
           if (error) {
-            if (error.code === 'PGRST116') {
-              setUserRole('user');
-            } else {
-              console.error('Error fetching user profile:', error);
-              setUserRole('user');
-            }
+            console.error('Error fetching user profile:', error);
+            setUserRole('user');
           } else {
             const isAdmin = userProfile?.is_admin;
             setUserRole(isAdmin === true ? 'admin' : 'user');
@@ -67,12 +59,8 @@ const Navbar = () => {
             .single();
           
           if (error) {
-            if (error.code === 'PGRST116') {
-              setUserRole('user');
-            } else {
-              console.error('Error fetching user profile:', error);
-              setUserRole('user');
-            }
+            console.error('Error fetching user profile:', error);
+            setUserRole('user');
           } else {
             const isAdmin = userProfile?.is_admin;
             setUserRole(isAdmin === true ? 'admin' : 'user');
@@ -111,54 +99,6 @@ const Navbar = () => {
     }
   };
 
-  const getNavLinks = () => {
-    if (!user) {
-      return (
-        <>
-          <Link to="/" className="flex items-center gap-2 text-sm hover:text-primary">
-            <Home className="w-4 h-4" />
-            Home
-          </Link>
-          <Link to="/grounds" className="flex items-center gap-2 text-sm hover:text-primary">
-            <Calendar className="w-4 h-4" />
-            Grounds
-          </Link>
-          <Link to="/contact" className="text-sm hover:text-primary">Contact</Link>
-        </>
-      );
-    }
-
-    if (userRole === 'admin') {
-      return (
-        <>
-          <Link to="/admin" className="flex items-center gap-2 text-sm hover:text-primary">
-            <Shield className="w-4 h-4" />
-            Admin Dashboard
-          </Link>
-          <Link to="/grounds" className="flex items-center gap-2 text-sm hover:text-primary">
-            <Calendar className="w-4 h-4" />
-            Manage Grounds
-          </Link>
-          <Link to="/contact" className="text-sm hover:text-primary">Contact</Link>
-        </>
-      );
-    }
-
-    return (
-      <>
-        <Link to="/dashboard" className="flex items-center gap-2 text-sm hover:text-primary">
-          <Home className="w-4 h-4" />
-          Dashboard
-        </Link>
-        <Link to="/grounds" className="flex items-center gap-2 text-sm hover:text-primary">
-          <Calendar className="w-4 h-4" />
-          Browse Grounds
-        </Link>
-        <Link to="/contact" className="text-sm hover:text-primary">Contact</Link>
-      </>
-    );
-  };
-
   if (loading) {
     return (
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -183,8 +123,58 @@ const Navbar = () => {
             <span className="text-xl font-bold">StumpsNSlots</span>
           </Link>
         </div>
+
+        <nav className="hidden md:flex items-center gap-6">
+          {!user ? (
+            <>
+              <Link to="/grounds" className="flex items-center gap-2 text-sm hover:text-primary">
+                <Calendar className="w-4 h-4" />
+                Grounds
+              </Link>
+              <Link to="/contact" className="text-sm hover:text-primary">Contact</Link>
+            </>
+          ) : userRole === 'admin' ? (
+            <>
+              <Link to="/admin" className="flex items-center gap-2 text-sm hover:text-primary">
+                <Shield className="w-4 h-4" />
+                Admin Dashboard
+              </Link>
+              <Link to="/grounds" className="flex items-center gap-2 text-sm hover:text-primary">
+                <Calendar className="w-4 h-4" />
+                Manage Grounds
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link to="/dashboard" className="flex items-center gap-2 text-sm hover:text-primary">
+                <Home className="w-4 h-4" />
+                Dashboard
+              </Link>
+              <Link to="/grounds" className="flex items-center gap-2 text-sm hover:text-primary">
+                <Calendar className="w-4 h-4" />
+                Browse Grounds
+              </Link>
+            </>
+          )}
+        </nav>
+
         <div className="flex items-center gap-2">
-          {user ? (
+          {!user ? (
+            <>
+              <Button variant="ghost" asChild>
+                <Link to="/login">
+                  <LogIn className="mr-2 h-4 w-4" />
+                  Login
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link to="/register">
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Sign Up
+                </Link>
+              </Button>
+            </>
+          ) : (
             <>
               <Button variant="outline" asChild>
                 <Link to="/profile">
@@ -202,7 +192,7 @@ const Navbar = () => {
                 </div>
               )}
             </>
-          ) : null}
+          )}
         </div>
       </div>
     </header>

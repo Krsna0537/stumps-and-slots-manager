@@ -6,7 +6,7 @@ import Footer from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, MapPin, Star, Calendar, Clock } from 'lucide-react';
+import { Search, MapPin, Star, Calendar, Clock, History } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 const Dashboard = () => {
   const { user, userRole, loading: authLoading } = useAuth('user');
   const [grounds, setGrounds] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<any[]>([]);
   const [filteredGrounds, setFilteredGrounds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,16 +25,46 @@ const Dashboard = () => {
     const fetchData = async () => {
       setLoading(true);
       
-      // Fetch grounds
-      const { data: groundsData } = await supabase.from('grounds').select('*').order('created_at', { ascending: false });
-      setGrounds(groundsData || []);
-      setFilteredGrounds(groundsData || []);
+      try {
+        // Fetch grounds
+        const { data: groundsData, error: groundsError } = await supabase
+          .from('grounds')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (groundsError) {
+          console.error('Error fetching grounds:', groundsError);
+        } else {
+          setGrounds(groundsData || []);
+          setFilteredGrounds(groundsData || []);
+        }
+
+        // Fetch user's bookings
+        if (user) {
+          const { data: bookingsData, error: bookingsError } = await supabase
+            .from('bookings')
+            .select(`
+              *,
+              grounds:ground_id (name, location, image_url)
+            `)
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+          if (bookingsError) {
+            console.error('Error fetching bookings:', bookingsError);
+          } else {
+            setBookings(bookingsData || []);
+          }
+        }
+      } catch (error) {
+        console.error('Unexpected error fetching data:', error);
+      }
       
       setLoading(false);
     };
     
     fetchData();
-  }, [authLoading]);
+  }, [authLoading, user]);
 
   useEffect(() => {
     if (searchQuery.trim() === '') {
@@ -95,6 +126,54 @@ const Dashboard = () => {
             <p className="text-muted-foreground text-lg">Find and book the perfect cricket ground for your next game</p>
           </div>
 
+          {/* My Bookings Section */}
+          {bookings.length > 0 && (
+            <div className="bg-white dark:bg-background border rounded-lg p-6 shadow-sm mb-8">
+              <div className="flex items-center gap-2 mb-4">
+                <History className="h-5 w-5 text-blue-600" />
+                <h2 className="text-xl font-bold">My Recent Bookings</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {bookings.slice(0, 3).map((booking) => (
+                  <Card key={booking.id} className="overflow-hidden">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg">{booking.grounds?.name}</CardTitle>
+                      <p className="text-sm text-muted-foreground">{booking.grounds?.location}</p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Calendar className="h-4 w-4" />
+                          {new Date(booking.booking_date).toLocaleDateString()}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Clock className="h-4 w-4" />
+                          {booking.start_time} - {booking.end_time}
+                        </div>
+                        <div className="text-sm font-medium">
+                          Status: <span className={`${
+                            booking.status === 'confirmed' ? 'text-green-600' :
+                            booking.status === 'pending' ? 'text-yellow-600' :
+                            'text-red-600'
+                          }`}>
+                            {booking.status}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              {bookings.length > 3 && (
+                <div className="mt-4 text-center">
+                  <Button variant="outline" asChild>
+                    <Link to="/profile">View All Bookings</Link>
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Search Section */}
           <div className="bg-white dark:bg-background border rounded-lg p-6 shadow-sm mb-8">
             <div className="relative max-w-md">
@@ -119,9 +198,9 @@ const Dashboard = () => {
             </Card>
             <Card>
               <CardContent className="p-6 text-center">
-                <Clock className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-                <h3 className="font-semibold text-lg">Easy Booking</h3>
-                <p className="text-sm text-muted-foreground">Book in just a few clicks</p>
+                <History className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+                <h3 className="font-semibold text-lg">My Bookings</h3>
+                <p className="text-3xl font-bold text-blue-600">{bookings.length}</p>
               </CardContent>
             </Card>
             <Card>

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
@@ -6,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, Plus } from 'lucide-react';
+import { Shield, Plus, Trash2, Edit } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const Admin = () => {
   const { user, userRole, loading } = useAuth('admin');
@@ -33,17 +35,31 @@ const Admin = () => {
     const fetchData = async () => {
       setDataLoading(true);
       
-      const [groundsResponse, bookingsResponse] = await Promise.all([
-        supabase.from('grounds').select('*').order('created_at', { ascending: false }),
-        supabase.from('bookings').select(`
-          *,
-          user_profiles:user_id (first_name, last_name),
-          grounds:ground_id (name)
-        `).order('created_at', { ascending: false })
-      ]);
+      try {
+        const [groundsResponse, bookingsResponse] = await Promise.all([
+          supabase.from('grounds').select('*').order('created_at', { ascending: false }),
+          supabase.from('bookings').select(`
+            *,
+            user_profiles:user_id (first_name, last_name),
+            grounds:ground_id (name)
+          `).order('created_at', { ascending: false })
+        ]);
+        
+        if (groundsResponse.error) {
+          console.error('Error fetching grounds:', groundsResponse.error);
+        } else {
+          setGrounds(groundsResponse.data || []);
+        }
+
+        if (bookingsResponse.error) {
+          console.error('Error fetching bookings:', bookingsResponse.error);
+        } else {
+          setBookings(bookingsResponse.data || []);
+        }
+      } catch (error) {
+        console.error('Unexpected error fetching data:', error);
+      }
       
-      setGrounds(groundsResponse.data || []);
-      setBookings(bookingsResponse.data || []);
       setDataLoading(false);
     };
     
@@ -64,42 +80,86 @@ const Admin = () => {
 
     setAddLoading(true);
     
-    const { error } = await supabase.from('grounds').insert({
-      name,
-      location,
-      address,
-      price_per_hour: Number(pricePerHour),
-      description,
-      image_url: imageUrl || null,
-      owner_id: user.id
-    });
+    try {
+      const { error } = await supabase.from('grounds').insert({
+        name,
+        location,
+        address,
+        price_per_hour: Number(pricePerHour),
+        description,
+        image_url: imageUrl || null,
+        owner_id: user.id
+      });
 
-    if (error) {
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Ground added successfully!",
+        });
+        
+        // Reset form
+        setName('');
+        setLocation('');
+        setAddress('');
+        setPricePerHour('');
+        setDescription('');
+        setImageUrl('');
+        
+        // Refresh grounds list
+        const { data } = await supabase.from('grounds').select('*').order('created_at', { ascending: false });
+        setGrounds(data || []);
+      }
+    } catch (error) {
+      console.error('Error adding ground:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: "An unexpected error occurred.",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Success",
-        description: "Ground added successfully!",
-      });
-      
-      // Reset form
-      setName('');
-      setLocation('');
-      setAddress('');
-      setPricePerHour('');
-      setDescription('');
-      setImageUrl('');
-      
-      // Refresh grounds list
-      const { data } = await supabase.from('grounds').select('*').order('created_at', { ascending: false });
-      setGrounds(data || []);
     }
     
     setAddLoading(false);
+  };
+
+  const handleDeleteGround = async (groundId: string) => {
+    if (!confirm('Are you sure you want to delete this ground?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('grounds')
+        .delete()
+        .eq('id', groundId);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Ground deleted successfully!",
+        });
+        
+        // Refresh grounds list
+        const { data } = await supabase.from('grounds').select('*').order('created_at', { ascending: false });
+        setGrounds(data || []);
+      }
+    } catch (error) {
+      console.error('Error deleting ground:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (loading) {
@@ -128,84 +188,6 @@ const Admin = () => {
               </div>
             </div>
 
-            {/* Add Ground Form */}
-            <section className="mb-10">
-              <div className="flex items-center gap-2 mb-6">
-                <Plus className="h-5 w-5 text-amber-600" />
-                <h2 className="text-xl font-bold">Add New Cricket Ground</h2>
-              </div>
-              
-              <form onSubmit={handleAddGround} className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Ground Name *</Label>
-                  <Input 
-                    id="name"
-                    value={name} 
-                    onChange={e => setName(e.target.value)} 
-                    placeholder="Enter ground name" 
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="location">Location *</Label>
-                  <Input 
-                    id="location"
-                    value={location} 
-                    onChange={e => setLocation(e.target.value)} 
-                    placeholder="Enter location" 
-                  />
-                </div>
-                
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="address">Address *</Label>
-                  <Input 
-                    id="address"
-                    value={address} 
-                    onChange={e => setAddress(e.target.value)} 
-                    placeholder="Enter full address" 
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="price">Price Per Hour (₹) *</Label>
-                  <Input 
-                    id="price"
-                    type="number" 
-                    min="0" 
-                    value={pricePerHour} 
-                    onChange={e => setPricePerHour(e.target.value)} 
-                    placeholder="0" 
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="image">Image URL</Label>
-                  <Input 
-                    id="image"
-                    value={imageUrl} 
-                    onChange={e => setImageUrl(e.target.value)} 
-                    placeholder="Enter image URL (optional)" 
-                  />
-                </div>
-                
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Input 
-                    id="description"
-                    value={description} 
-                    onChange={e => setDescription(e.target.value)} 
-                    placeholder="Enter ground description (optional)" 
-                  />
-                </div>
-                
-                <div className="md:col-span-2">
-                  <Button type="submit" disabled={addLoading} className="w-full md:w-auto bg-amber-600 hover:bg-amber-700">
-                    {addLoading ? 'Adding Ground...' : 'Add Ground'}
-                  </Button>
-                </div>
-              </form>
-            </section>
-
             {/* Statistics */}
             <section className="mb-10">
               <h2 className="text-xl font-bold mb-4">Platform Statistics</h2>
@@ -225,6 +207,134 @@ const Admin = () => {
                   </p>
                 </div>
               </div>
+            </section>
+
+            {/* Add Ground Form */}
+            <section className="mb-10">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Plus className="h-5 w-5 text-amber-600" />
+                    Add New Cricket Ground
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleAddGround} className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Ground Name *</Label>
+                      <Input 
+                        id="name"
+                        value={name} 
+                        onChange={e => setName(e.target.value)} 
+                        placeholder="Enter ground name" 
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="location">Location *</Label>
+                      <Input 
+                        id="location"
+                        value={location} 
+                        onChange={e => setLocation(e.target.value)} 
+                        placeholder="Enter location" 
+                      />
+                    </div>
+                    
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="address">Address *</Label>
+                      <Input 
+                        id="address"
+                        value={address} 
+                        onChange={e => setAddress(e.target.value)} 
+                        placeholder="Enter full address" 
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="price">Price Per Hour (₹) *</Label>
+                      <Input 
+                        id="price"
+                        type="number" 
+                        min="0" 
+                        value={pricePerHour} 
+                        onChange={e => setPricePerHour(e.target.value)} 
+                        placeholder="0" 
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="image">Image URL</Label>
+                      <Input 
+                        id="image"
+                        value={imageUrl} 
+                        onChange={e => setImageUrl(e.target.value)} 
+                        placeholder="Enter image URL (optional)" 
+                      />
+                    </div>
+                    
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="description">Description</Label>
+                      <Input 
+                        id="description"
+                        value={description} 
+                        onChange={e => setDescription(e.target.value)} 
+                        placeholder="Enter ground description (optional)" 
+                      />
+                    </div>
+                    
+                    <div className="md:col-span-2">
+                      <Button type="submit" disabled={addLoading} className="w-full md:w-auto bg-amber-600 hover:bg-amber-700">
+                        {addLoading ? 'Adding Ground...' : 'Add Ground'}
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* Manage Grounds */}
+            <section className="mb-10">
+              <h2 className="text-xl font-bold mb-4">Manage Grounds</h2>
+              {dataLoading ? (
+                <div>Loading grounds...</div>
+              ) : grounds.length === 0 ? (
+                <p className="text-muted-foreground">No grounds found.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {grounds.map((ground) => (
+                    <Card key={ground.id} className="overflow-hidden">
+                      <div className="aspect-video w-full">
+                        <img
+                          src={ground.image_url || '/cric.jpg'}
+                          alt={ground.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg">{ground.name}</CardTitle>
+                        <p className="text-sm text-muted-foreground">{ground.location}</p>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold">₹{ground.price_per_hour}/hr</span>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              onClick={() => handleDeleteGround(ground.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </section>
 
             {/* Recent Bookings */}
@@ -260,7 +370,7 @@ const Admin = () => {
                             {new Date(booking.booking_date).toLocaleDateString()}
                           </td>
                           <td className="border border-gray-200 p-3">
-                            {booking.time_slot || `${booking.start_time} - ${booking.end_time}`}
+                            {booking.start_time} - {booking.end_time}
                           </td>
                           <td className="border border-gray-200 p-3">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${

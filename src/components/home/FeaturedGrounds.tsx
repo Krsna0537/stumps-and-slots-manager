@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -12,12 +13,23 @@ const FeaturedGrounds = () => {
   useEffect(() => {
     const fetchGrounds = async () => {
       setLoading(true);
-      // Fetch only grounds added by admin (owner_id not null)
-      const { data } = await supabase
-        .from('grounds')
-        .select('*')
-        .order('created_at', { ascending: false });
-      setGrounds(data || []);
+      try {
+        const { data, error } = await supabase
+          .from('grounds')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(3);
+        
+        if (error) {
+          console.error('Error fetching grounds:', error);
+          setGrounds([]);
+        } else {
+          setGrounds(data || []);
+        }
+      } catch (error) {
+        console.error('Unexpected error fetching grounds:', error);
+        setGrounds([]);
+      }
       setLoading(false);
     };
     fetchGrounds();
@@ -42,7 +54,7 @@ const FeaturedGrounds = () => {
           <div className="text-center text-muted-foreground py-12">No grounds available.</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {grounds.slice(0, 3).map(ground => (
+            {grounds.map(ground => (
               <Card key={ground.id} className="overflow-hidden transition-all duration-300 hover:shadow-lg">
                 <div className="aspect-video w-full overflow-hidden">
                   <img 
@@ -61,7 +73,7 @@ const FeaturedGrounds = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1">
                       <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <span className="font-medium">{ground.rating || 'N/A'}</span>
+                      <span className="font-medium">4.5</span>
                     </div>
                     <div className="font-semibold">₹{ground.price_per_hour}/hr</div>
                   </div>
