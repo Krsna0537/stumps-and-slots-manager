@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Save, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Save } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 
 const GroundManagement = () => {
@@ -25,7 +25,9 @@ const GroundManagement = () => {
     address: '',
     price_per_hour: '',
     description: '',
-    image_url: ''
+    image_url: '',
+    latitude: '',
+    longitude: ''
   });
 
   useEffect(() => {
@@ -64,7 +66,9 @@ const GroundManagement = () => {
       address: '',
       price_per_hour: '',
       description: '',
-      image_url: ''
+      image_url: '',
+      latitude: '',
+      longitude: ''
     });
   };
 
@@ -83,13 +87,22 @@ const GroundManagement = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      const { error } = await supabase.from('grounds').insert({
-        ...formData,
+      const groundData = {
+        name: formData.name,
+        location: formData.location,
+        address: formData.address,
         price_per_hour: Number(formData.price_per_hour),
-        owner_id: user?.id
-      });
+        description: formData.description || '',
+        image_url: formData.image_url || '',
+        latitude: formData.latitude ? Number(formData.latitude) : 0,
+        longitude: formData.longitude ? Number(formData.longitude) : 0,
+        owner_id: user?.id || ''
+      };
+
+      const { error } = await supabase.from('grounds').insert(groundData);
 
       if (error) {
+        console.error('Error adding ground:', error);
         toast({
           title: "Error",
           description: error.message,
@@ -127,15 +140,24 @@ const GroundManagement = () => {
     }
 
     try {
+      const updateData = {
+        name: formData.name,
+        location: formData.location,
+        address: formData.address,
+        price_per_hour: Number(formData.price_per_hour),
+        description: formData.description || '',
+        image_url: formData.image_url || '',
+        latitude: formData.latitude ? Number(formData.latitude) : editingGround.latitude || 0,
+        longitude: formData.longitude ? Number(formData.longitude) : editingGround.longitude || 0
+      };
+
       const { error } = await supabase
         .from('grounds')
-        .update({
-          ...formData,
-          price_per_hour: Number(formData.price_per_hour)
-        })
+        .update(updateData)
         .eq('id', editingGround.id);
 
       if (error) {
+        console.error('Error updating ground:', error);
         toast({
           title: "Error",
           description: error.message,
@@ -169,7 +191,9 @@ const GroundManagement = () => {
       address: ground.address,
       price_per_hour: ground.price_per_hour.toString(),
       description: ground.description || '',
-      image_url: ground.image_url || ''
+      image_url: ground.image_url || '',
+      latitude: ground.latitude?.toString() || '',
+      longitude: ground.longitude?.toString() || ''
     });
     setIsEditDialogOpen(true);
   };
@@ -264,6 +288,32 @@ const GroundManagement = () => {
             value={formData.image_url} 
             onChange={e => setFormData({...formData, image_url: e.target.value})} 
             placeholder="Enter image URL (optional)" 
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="latitude">Latitude</Label>
+          <Input 
+            id="latitude"
+            type="number" 
+            step="any"
+            value={formData.latitude} 
+            onChange={e => setFormData({...formData, latitude: e.target.value})} 
+            placeholder="0.0" 
+          />
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="longitude">Longitude</Label>
+          <Input 
+            id="longitude"
+            type="number" 
+            step="any"
+            value={formData.longitude} 
+            onChange={e => setFormData({...formData, longitude: e.target.value})} 
+            placeholder="0.0" 
           />
         </div>
       </div>

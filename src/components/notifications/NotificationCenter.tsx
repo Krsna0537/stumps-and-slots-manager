@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Bell, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { Notification } from '@/types/notifications';
+import { Notification } from '@/types/supabase';
 
 const NotificationCenter = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -25,10 +25,13 @@ const NotificationCenter = () => {
         { event: 'INSERT', schema: 'public', table: 'notifications' },
         (payload) => {
           fetchNotifications();
-          toast({
-            title: payload.new.title,
-            description: payload.new.message,
-          });
+          if (payload.new && typeof payload.new === 'object') {
+            const newNotification = payload.new as any;
+            toast({
+              title: newNotification.title,
+              description: newNotification.message,
+            });
+          }
         }
       )
       .subscribe();
@@ -36,21 +39,24 @@ const NotificationCenter = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [toast]);
 
   const fetchNotifications = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Use direct query with proper type casting since notifications table isn't in types yet
+      // Use direct query and cast the result
       const { data, error } = await supabase
-        .rpc('get_user_notifications', { p_user_id: user.id });
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching notifications:', error);
       } else {
-        const notificationData = data || [];
+        const notificationData = (data || []) as Notification[];
         setNotifications(notificationData);
         setUnreadCount(notificationData.filter((n: Notification) => !n.is_read).length);
       }
@@ -63,8 +69,16 @@ const NotificationCenter = () => {
 
   const markAsRead = async (notificationId: string) => {
     try {
-      await supabase.rpc('mark_notification_read', { p_notification_id: notificationId });
-      fetchNotifications();
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', notificationId);
+
+      if (error) {
+        console.error('Error marking notification as read:', error);
+      } else {
+        fetchNotifications();
+      }
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
@@ -75,12 +89,21 @@ const NotificationCenter = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      await supabase.rpc('mark_all_notifications_read', { p_user_id: user.id });
-      fetchNotifications();
-      toast({
-        title: "Success",
-        description: "All notifications marked as read.",
-      });
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', user.id)
+        .eq('is_read', false);
+
+      if (error) {
+        console.error('Error marking all notifications as read:', error);
+      } else {
+        fetchNotifications();
+        toast({
+          title: "Success",
+          description: "All notifications marked as read.",
+        });
+      }
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
     }

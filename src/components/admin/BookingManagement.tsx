@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, XCircle, Calendar, Clock, MapPin, User, Filter } from 'lucide-react';
 import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { BookingStatus } from '@/types/supabase';
 
 const BookingManagement = () => {
   const [bookings, setBookings] = useState<any[]>([]);
@@ -34,19 +35,22 @@ const BookingManagement = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
+        console.error('Error fetching bookings:', error);
         setError('Error fetching bookings.');
         setBookings([]);
       } else {
         setBookings(data || []);
       }
     } catch (error) {
+      console.error('Unexpected error:', error);
       setError('Unexpected error fetching bookings.');
+      setBookings([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const updateBookingStatus = async (bookingId: string, newStatus: string) => {
+  const updateBookingStatus = async (bookingId: string, newStatus: BookingStatus) => {
     try {
       const { error } = await supabase
         .from('bookings')
@@ -54,18 +58,13 @@ const BookingManagement = () => {
         .eq('id', bookingId);
 
       if (error) {
+        console.error('Error updating booking:', error);
         toast({
           title: "Error",
           description: `Failed to ${newStatus} booking.`,
           variant: "destructive",
         });
       } else {
-        // Create notification for the user
-        const booking = bookings.find(b => b.id === bookingId);
-        if (booking) {
-          await createNotification(booking.user_id, newStatus);
-        }
-        
         toast({
           title: "Success",
           description: `Booking ${newStatus} successfully!`,
@@ -74,41 +73,11 @@ const BookingManagement = () => {
       }
     } catch (error) {
       console.error('Error updating booking status:', error);
-    }
-  };
-
-  const createNotification = async (userId: string, status: string) => {
-    try {
-      const title = 'Booking Status Update';
-      let message = '';
-      let type = 'info';
-
-      switch (status) {
-        case 'confirmed':
-          message = 'Your booking has been approved!';
-          type = 'success';
-          break;
-        case 'rejected':
-          message = 'Your booking has been rejected. Please contact support for more information.';
-          type = 'error';
-          break;
-        case 'cancelled':
-          message = 'Your booking has been cancelled.';
-          type = 'warning';
-          break;
-        default:
-          message = `Your booking status has been updated to ${status}.`;
-      }
-
-      // Insert notification directly using SQL since the table isn't in TypeScript types yet
-      await supabase.rpc('create_notification', {
-        p_user_id: userId,
-        p_title: title,
-        p_message: message,
-        p_type: type
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
       });
-    } catch (error) {
-      console.error('Error creating notification:', error);
     }
   };
 
@@ -182,11 +151,11 @@ const BookingManagement = () => {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div>
-                    <CardTitle className="text-lg">{booking.grounds?.name}</CardTitle>
+                    <CardTitle className="text-lg">{booking.grounds?.name || 'Unknown Ground'}</CardTitle>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
                       <div className="flex items-center gap-1">
                         <MapPin className="h-4 w-4" />
-                        {booking.grounds?.location}
+                        {booking.grounds?.location || 'Unknown Location'}
                       </div>
                       <div className="flex items-center gap-1">
                         <User className="h-4 w-4" />

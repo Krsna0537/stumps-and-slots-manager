@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar, Home, User, UserPlus, LogIn, LogOut, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { ExtendedUserProfile } from '@/types/supabase';
 
 const Navbar = () => {
   const [user, setUser] = useState(null);
@@ -31,7 +32,8 @@ const Navbar = () => {
             console.error('Error fetching user profile:', error);
             setUserRole('user');
           } else {
-            const isAdmin = userProfile?.is_admin;
+            const profile = userProfile as ExtendedUserProfile;
+            const isAdmin = profile?.is_admin;
             setUserRole(isAdmin === true ? 'admin' : 'user');
           }
         } else {
@@ -62,7 +64,8 @@ const Navbar = () => {
             console.error('Error fetching user profile:', error);
             setUserRole('user');
           } else {
-            const isAdmin = userProfile?.is_admin;
+            const profile = userProfile as ExtendedUserProfile;
+            const isAdmin = profile?.is_admin;
             setUserRole(isAdmin === true ? 'admin' : 'user');
           }
         } catch (error) {

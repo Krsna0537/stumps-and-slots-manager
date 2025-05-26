@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Review } from '@/types/supabase';
 
 interface ReviewSystemProps {
   groundId: string;
@@ -13,12 +14,12 @@ interface ReviewSystemProps {
 }
 
 const ReviewSystem = ({ groundId, userHasBooking = false }: ReviewSystemProps) => {
-  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [newRating, setNewRating] = useState(0);
   const [newComment, setNewComment] = useState('');
-  const [userReview, setUserReview] = useState<any>(null);
+  const [userReview, setUserReview] = useState<Review | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -28,22 +29,37 @@ const ReviewSystem = ({ groundId, userHasBooking = false }: ReviewSystemProps) =
 
   const fetchReviews = async () => {
     try {
+      // Direct query without joins for now since reviews table might not be in schema
       const { data, error } = await supabase
         .from('reviews')
-        .select(`
-          *,
-          user_profiles:user_id (first_name, last_name)
-        `)
+        .select('*')
         .eq('ground_id', groundId)
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching reviews:', error);
+        setReviews([]);
       } else {
-        setReviews(data || []);
+        // Fetch user profiles separately
+        const reviewsWithProfiles = await Promise.all(
+          (data || []).map(async (review) => {
+            const { data: profile } = await supabase
+              .from('user_profiles')
+              .select('first_name, last_name')
+              .eq('id', review.user_id)
+              .single();
+            
+            return {
+              ...review,
+              user_profiles: profile
+            } as Review;
+          })
+        );
+        setReviews(reviewsWithProfiles);
       }
     } catch (error) {
-      console.error('Unexpected error:', error);
+      console.error('Unexpected error fetching reviews:', error);
+      setReviews([]);
     } finally {
       setLoading(false);
     }
@@ -62,7 +78,7 @@ const ReviewSystem = ({ groundId, userHasBooking = false }: ReviewSystemProps) =
         .single();
 
       if (!error && data) {
-        setUserReview(data);
+        setUserReview(data as Review);
         setNewRating(data.rating);
         setNewComment(data.comment || '');
       }
