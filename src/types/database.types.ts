@@ -154,6 +154,46 @@ export interface Database {
           }
         ]
       }
+      payments: {
+        Row: {
+          id: string
+          booking_id: string
+          amount: number
+          payment_method: string
+          status: string
+          transaction_id: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          booking_id: string
+          amount: number
+          payment_method?: string
+          status?: string
+          transaction_id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          booking_id?: string
+          amount?: number
+          payment_method?: string
+          status?: string
+          transaction_id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_booking_id_fkey"
+            columns: ["booking_id"]
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       reviews: {
         Row: {
           id: string
@@ -200,35 +240,35 @@ export interface Database {
       user_profiles: {
         Row: {
           id: string
-          user_id: string
           first_name: string
           last_name: string
           phone: string
+          is_admin: boolean
           created_at: string
           updated_at: string
         }
         Insert: {
-          id?: string
-          user_id: string
+          id: string
           first_name: string
           last_name: string
-          phone: string
+          phone?: string
+          is_admin?: boolean
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
-          user_id?: string
           first_name?: string
           last_name?: string
           phone?: string
+          is_admin?: boolean
           created_at?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "user_profiles_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "user_profiles_id_fkey"
+            columns: ["id"]
             referencedRelation: "users"
             referencedColumns: ["id"]
           }

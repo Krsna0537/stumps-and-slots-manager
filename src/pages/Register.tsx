@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -56,7 +57,8 @@ const Register = () => {
       const { error: profileError } = await supabase.from('user_profiles').insert({
         id: userId,
         first_name: firstName,
-        last_name: lastName
+        last_name: lastName,
+        phone: '' // Default empty phone
       });
       setLoading(false);
       if (profileError) {
