@@ -16,6 +16,7 @@ const GroundManagement = () => {
   const [editingGround, setEditingGround] = useState<any>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   // Form state for both add and edit
@@ -37,6 +38,7 @@ const GroundManagement = () => {
   const fetchGrounds = async () => {
     setLoading(true);
     try {
+      console.log('Fetching grounds...');
       const { data, error } = await supabase
         .from('grounds')
         .select('*')
@@ -50,6 +52,7 @@ const GroundManagement = () => {
           variant: "destructive",
         });
       } else {
+        console.log('Grounds fetched successfully:', data);
         setGrounds(data || []);
       }
     } catch (error) {
@@ -75,7 +78,15 @@ const GroundManagement = () => {
   const handleAddGround = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (isSubmitting) {
+      console.log('Already submitting, ignoring duplicate submission');
+      return;
+    }
+
+    console.log('Starting ground addition with form data:', formData);
+    
     if (!formData.name || !formData.location || !formData.address || !formData.price_per_hour) {
+      console.log('Validation failed - missing required fields');
       toast({
         title: "Error",
         description: "Name, location, address, and price per hour are required.",
@@ -84,31 +95,64 @@ const GroundManagement = () => {
       return;
     }
 
+    setIsSubmitting(true);
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Getting current user...');
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error('Error getting user:', userError);
+        toast({
+          title: "Error",
+          description: "Failed to get user information. Please try logging in again.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!user) {
+        console.error('No user found');
+        toast({
+          title: "Error",
+          description: "You must be logged in to add grounds.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      console.log('Current user:', user.id);
       
       const groundData = {
-        name: formData.name,
-        location: formData.location,
-        address: formData.address,
+        name: formData.name.trim(),
+        location: formData.location.trim(),
+        address: formData.address.trim(),
         price_per_hour: Number(formData.price_per_hour),
-        description: formData.description || '',
-        image_url: formData.image_url || '',
-        latitude: formData.latitude ? Number(formData.latitude) : 0,
-        longitude: formData.longitude ? Number(formData.longitude) : 0,
-        owner_id: user?.id || ''
+        description: formData.description.trim() || '',
+        image_url: formData.image_url.trim() || '',
+        latitude: formData.latitude ? Number(formData.latitude) : null,
+        longitude: formData.longitude ? Number(formData.longitude) : null,
+        owner_id: user.id
       };
 
-      const { error } = await supabase.from('grounds').insert(groundData);
+      console.log('Inserting ground data:', groundData);
+
+      const { data: insertedData, error } = await supabase
+        .from('grounds')
+        .insert(groundData)
+        .select();
 
       if (error) {
         console.error('Error adding ground:', error);
         toast({
           title: "Error",
-          description: error.message,
+          description: `Failed to add ground: ${error.message}`,
           variant: "destructive",
         });
       } else {
+        console.log('Ground added successfully:', insertedData);
         toast({
           title: "Success",
           description: "Ground added successfully!",
@@ -118,17 +162,26 @@ const GroundManagement = () => {
         fetchGrounds();
       }
     } catch (error) {
-      console.error('Error adding ground:', error);
+      console.error('Unexpected error adding ground:', error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred.",
+        description: "An unexpected error occurred while adding the ground.",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleEditGround = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isSubmitting) {
+      console.log('Already submitting, ignoring duplicate submission');
+      return;
+    }
+
+    console.log('Starting ground update with form data:', formData);
     
     if (!formData.name || !formData.location || !formData.address || !formData.price_per_hour) {
       toast({
@@ -139,17 +192,21 @@ const GroundManagement = () => {
       return;
     }
 
+    setIsSubmitting(true);
+
     try {
       const updateData = {
-        name: formData.name,
-        location: formData.location,
-        address: formData.address,
+        name: formData.name.trim(),
+        location: formData.location.trim(),
+        address: formData.address.trim(),
         price_per_hour: Number(formData.price_per_hour),
-        description: formData.description || '',
-        image_url: formData.image_url || '',
-        latitude: formData.latitude ? Number(formData.latitude) : editingGround.latitude || 0,
-        longitude: formData.longitude ? Number(formData.longitude) : editingGround.longitude || 0
+        description: formData.description.trim() || '',
+        image_url: formData.image_url.trim() || '',
+        latitude: formData.latitude ? Number(formData.latitude) : editingGround.latitude || null,
+        longitude: formData.longitude ? Number(formData.longitude) : editingGround.longitude || null
       };
+
+      console.log('Updating ground with data:', updateData);
 
       const { error } = await supabase
         .from('grounds')
@@ -164,6 +221,7 @@ const GroundManagement = () => {
           variant: "destructive",
         });
       } else {
+        console.log('Ground updated successfully');
         toast({
           title: "Success",
           description: "Ground updated successfully!",
@@ -180,6 +238,8 @@ const GroundManagement = () => {
         description: "An unexpected error occurred.",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -202,18 +262,21 @@ const GroundManagement = () => {
     if (!confirm('Are you sure you want to delete this ground?')) return;
 
     try {
+      console.log('Deleting ground:', groundId);
       const { error } = await supabase
         .from('grounds')
         .delete()
         .eq('id', groundId);
 
       if (error) {
+        console.error('Error deleting ground:', error);
         toast({
           title: "Error",
           description: error.message,
           variant: "destructive",
         });
       } else {
+        console.log('Ground deleted successfully');
         toast({
           title: "Success",
           description: "Ground deleted successfully!",
@@ -241,6 +304,7 @@ const GroundManagement = () => {
             onChange={e => setFormData({...formData, name: e.target.value})} 
             placeholder="Enter ground name" 
             required
+            disabled={isSubmitting}
           />
         </div>
         
@@ -252,6 +316,7 @@ const GroundManagement = () => {
             onChange={e => setFormData({...formData, location: e.target.value})} 
             placeholder="Enter location" 
             required
+            disabled={isSubmitting}
           />
         </div>
       </div>
@@ -264,6 +329,7 @@ const GroundManagement = () => {
           onChange={e => setFormData({...formData, address: e.target.value})} 
           placeholder="Enter full address" 
           required
+          disabled={isSubmitting}
         />
       </div>
       
@@ -278,6 +344,7 @@ const GroundManagement = () => {
             onChange={e => setFormData({...formData, price_per_hour: e.target.value})} 
             placeholder="0" 
             required
+            disabled={isSubmitting}
           />
         </div>
         
@@ -288,6 +355,7 @@ const GroundManagement = () => {
             value={formData.image_url} 
             onChange={e => setFormData({...formData, image_url: e.target.value})} 
             placeholder="Enter image URL (optional)" 
+            disabled={isSubmitting}
           />
         </div>
       </div>
@@ -302,6 +370,7 @@ const GroundManagement = () => {
             value={formData.latitude} 
             onChange={e => setFormData({...formData, latitude: e.target.value})} 
             placeholder="0.0" 
+            disabled={isSubmitting}
           />
         </div>
         
@@ -314,6 +383,7 @@ const GroundManagement = () => {
             value={formData.longitude} 
             onChange={e => setFormData({...formData, longitude: e.target.value})} 
             placeholder="0.0" 
+            disabled={isSubmitting}
           />
         </div>
       </div>
@@ -326,13 +396,18 @@ const GroundManagement = () => {
           onChange={e => setFormData({...formData, description: e.target.value})} 
           placeholder="Enter ground description (optional)" 
           rows={3}
+          disabled={isSubmitting}
         />
       </div>
       
       <div className="flex justify-end gap-2">
-        <Button type="submit" className="bg-amber-600 hover:bg-amber-700">
+        <Button 
+          type="submit" 
+          className="bg-amber-600 hover:bg-amber-700"
+          disabled={isSubmitting}
+        >
           <Save className="h-4 w-4 mr-2" />
-          {title}
+          {isSubmitting ? 'Saving...' : title}
         </Button>
       </div>
     </form>
