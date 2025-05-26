@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -14,6 +13,7 @@ const BookingManagement = () => {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all');
   const { toast } = useToast();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchBookings();
@@ -21,6 +21,7 @@ const BookingManagement = () => {
 
   const fetchBookings = async () => {
     setLoading(true);
+    setError(null);
     try {
       const { data, error } = await supabase
         .from('bookings')
@@ -32,23 +33,19 @@ const BookingManagement = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching bookings:', error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch bookings.",
-          variant: "destructive",
-        });
+        setError('Error fetching bookings.');
+        setBookings([]);
       } else {
         setBookings(data || []);
       }
     } catch (error) {
-      console.error('Unexpected error:', error);
+      setError('Unexpected error fetching bookings.');
     } finally {
       setLoading(false);
     }
   };
 
-  const updateBookingStatus = async (bookingId: string, newStatus: string) => {
+  const updateBookingStatus = async (bookingId: string, newStatus: "pending" | "confirmed" | "cancelled" | "completed") => {
     try {
       const { error } = await supabase
         .from('bookings')
@@ -93,6 +90,17 @@ const BookingManagement = () => {
     filterStatus === 'all' || booking.status === filterStatus
   );
 
+  if (error) {
+    return (
+      <div className="text-center py-8 text-red-600">
+        <div className="mb-4">{error}</div>
+        <Button variant="outline" onClick={fetchBookings}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
   if (loading) {
     return <div className="text-center py-8">Loading bookings...</div>;
   }
@@ -111,7 +119,6 @@ const BookingManagement = () => {
               <SelectItem value="all">All Bookings</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="confirmed">Confirmed</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
               <SelectItem value="cancelled">Cancelled</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
@@ -179,7 +186,7 @@ const BookingManagement = () => {
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => updateBookingStatus(booking.id, 'rejected')}
+                      onClick={() => updateBookingStatus(booking.id, 'cancelled')}
                     >
                       <XCircle className="h-4 w-4 mr-1" />
                       Reject
@@ -201,6 +208,7 @@ const BookingManagement = () => {
                       variant="destructive"
                       onClick={() => updateBookingStatus(booking.id, 'cancelled')}
                     >
+                      <XCircle className="h-4 w-4 mr-1" />
                       Cancel
                     </Button>
                   </div>

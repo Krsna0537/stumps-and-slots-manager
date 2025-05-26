@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -8,8 +7,18 @@ import { Bell, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
+interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+  is_read: boolean;
+  created_at: string;
+}
+
 const NotificationCenter = () => {
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const { toast } = useToast();
@@ -99,14 +108,14 @@ const NotificationCenter = () => {
     }
   };
 
-  const getTypeColor = (type: string) => {
-    const colors: { [key: string]: string } = {
+  const getTypeColor = (type: Notification['type']) => {
+    const colors: Record<Notification['type'], string> = {
       success: 'bg-green-100 text-green-800',
       error: 'bg-red-100 text-red-800',
       warning: 'bg-yellow-100 text-yellow-800',
       info: 'bg-blue-100 text-blue-800'
     };
-    return colors[type] || colors.info;
+    return colors[type];
   };
 
   if (loading) {

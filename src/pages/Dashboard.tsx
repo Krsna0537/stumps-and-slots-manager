@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -13,23 +12,66 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
 
+interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+  is_read: boolean;
+  created_at: string;
+}
+
+interface Ground {
+  id: string;
+  name: string;
+  description: string;
+  location: string;
+  address: string;
+  price_per_hour: number;
+  image_url: string;
+  owner_id: string;
+  is_featured: boolean;
+  latitude: number;
+  longitude: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Booking {
+  id: string;
+  user_id: string;
+  ground_id: string;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  total_price: number;
+  grounds?: {
+    name: string;
+    location: string;
+    image_url: string;
+  };
+}
+
 const Dashboard = () => {
   const { user, userRole, loading: authLoading } = useAuth('user');
-  const [grounds, setGrounds] = useState<any[]>([]);
-  const [bookings, setBookings] = useState<any[]>([]);
-  const [filteredGrounds, setFilteredGrounds] = useState<any[]>([]);
+  const [grounds, setGrounds] = useState<Ground[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [filteredGrounds, setFilteredGrounds] = useState<Ground[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [locationFilter, setLocationFilter] = useState('all');
   const [priceFilter, setPriceFilter] = useState('all');
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
     
     const fetchData = async () => {
       setLoading(true);
-      
+      setError(null);
       try {
         // Fetch grounds
         const { data: groundsData, error: groundsError } = await supabase
@@ -38,7 +80,9 @@ const Dashboard = () => {
           .order('created_at', { ascending: false });
         
         if (groundsError) {
-          console.error('Error fetching grounds:', groundsError);
+          setError('Error fetching grounds.');
+          setLoading(false);
+          return;
         } else {
           setGrounds(groundsData || []);
           setFilteredGrounds(groundsData || []);
@@ -66,19 +110,27 @@ const Dashboard = () => {
               .limit(5)
           ]);
 
-          if (!bookingsResponse.error) {
+          if (bookingsResponse.error) {
+            setError('Error fetching bookings.');
+            setLoading(false);
+            return;
+          } else {
             setBookings(bookingsResponse.data || []);
           }
           
-          if (!notificationsResponse.error) {
+          if (notificationsResponse.error) {
+            setError('Error fetching notifications.');
+            setLoading(false);
+            return;
+          } else {
             setNotifications(notificationsResponse.data || []);
           }
         }
       } catch (error) {
-        console.error('Unexpected error fetching data:', error);
+        setError('Unexpected error fetching data.');
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
     
     fetchData();
@@ -160,6 +212,23 @@ const Dashboard = () => {
                 </Card>
               ))}
             </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-1 py-8 bg-gray-50 dark:bg-gray-900">
+          <div className="container text-center py-12">
+            <div className="text-red-600 text-lg font-semibold mb-4">{error}</div>
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              Retry
+            </Button>
           </div>
         </main>
         <Footer />
