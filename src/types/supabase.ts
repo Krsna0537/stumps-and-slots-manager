@@ -18,7 +18,7 @@ export interface Review {
   ground_id: string;
   user_id: string;
   rating: number;
-  comment?: string;
+  comment?: string | null;
   created_at: string;
   updated_at: string;
   user_profiles?: {

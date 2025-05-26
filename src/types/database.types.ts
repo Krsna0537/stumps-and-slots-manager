@@ -1,3 +1,4 @@
+
 export type Json =
   | string
   | number
@@ -17,7 +18,7 @@ export interface Database {
           booking_date: string
           start_time: string
           end_time: string
-          status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
+          status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'rejected'
           total_price: number
           created_at: string
           updated_at: string
@@ -29,7 +30,7 @@ export interface Database {
           booking_date: string
           start_time: string
           end_time: string
-          status?: 'pending' | 'confirmed' | 'cancelled' | 'completed'
+          status?: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'rejected'
           total_price: number
           created_at?: string
           updated_at?: string
@@ -41,7 +42,7 @@ export interface Database {
           booking_date?: string
           start_time?: string
           end_time?: string
-          status?: 'pending' | 'confirmed' | 'cancelled' | 'completed'
+          status?: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'rejected'
           total_price?: number
           created_at?: string
           updated_at?: string
@@ -149,6 +150,49 @@ export interface Database {
             foreignKeyName: "notifications_user_id_fkey"
             columns: ["user_id"]
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      reviews: {
+        Row: {
+          id: string
+          ground_id: string
+          user_id: string
+          rating: number
+          comment: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          ground_id: string
+          user_id: string
+          rating: number
+          comment?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          ground_id?: string
+          user_id?: string
+          rating?: number
+          comment?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_ground_id_fkey"
+            columns: ["ground_id"]
+            referencedRelation: "grounds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           }
         ]

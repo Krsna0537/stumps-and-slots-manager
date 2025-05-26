@@ -29,7 +29,7 @@ const ReviewSystem = ({ groundId, userHasBooking = false }: ReviewSystemProps) =
 
   const fetchReviews = async () => {
     try {
-      // Direct query without joins for now since reviews table might not be in schema
+      // Using the new database client with proper types
       const { data, error } = await supabase
         .from('reviews')
         .select('*')
@@ -40,7 +40,7 @@ const ReviewSystem = ({ groundId, userHasBooking = false }: ReviewSystemProps) =
         console.error('Error fetching reviews:', error);
         setReviews([]);
       } else {
-        // Fetch user profiles separately
+        // Fetch user profiles separately for each review
         const reviewsWithProfiles = await Promise.all(
           (data || []).map(async (review) => {
             const { data: profile } = await supabase
