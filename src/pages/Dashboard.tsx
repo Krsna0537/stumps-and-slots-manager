@@ -11,16 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
-
-interface Notification {
-  id: string;
-  user_id: string;
-  title: string;
-  message: string;
-  type: 'success' | 'error' | 'warning' | 'info';
-  is_read: boolean;
-  created_at: string;
-}
+import { Notification } from '@/types/notifications';
 
 interface Ground {
   id: string;
@@ -90,40 +81,33 @@ const Dashboard = () => {
 
         // Fetch user's bookings and notifications if logged in
         if (user) {
-          const [bookingsResponse, notificationsResponse] = await Promise.all([
-            supabase
-              .from('bookings')
-              .select(`
-                *,
-                grounds:ground_id (name, location, image_url)
-              `)
-              .eq('user_id', user.id)
-              .order('created_at', { ascending: false })
-              .limit(3),
-            
-            supabase
-              .from('notifications')
-              .select('*')
-              .eq('user_id', user.id)
-              .eq('is_read', false)
-              .order('created_at', { ascending: false })
-              .limit(5)
-          ]);
+          const { data: bookingsData, error: bookingsError } = await supabase
+            .from('bookings')
+            .select(`
+              *,
+              grounds:ground_id (name, location, image_url)
+            `)
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(3);
 
-          if (bookingsResponse.error) {
+          if (bookingsError) {
             setError('Error fetching bookings.');
             setLoading(false);
             return;
           } else {
-            setBookings(bookingsResponse.data || []);
+            setBookings(bookingsData || []);
           }
           
-          if (notificationsResponse.error) {
-            setError('Error fetching notifications.');
-            setLoading(false);
-            return;
-          } else {
-            setNotifications(notificationsResponse.data || []);
+          // Fetch notifications using RPC function
+          try {
+            const { data: notificationsData } = await supabase
+              .rpc('get_user_notifications', { p_user_id: user.id });
+            
+            setNotifications((notificationsData || []).slice(0, 5));
+          } catch (notifError) {
+            console.error('Error fetching notifications:', notifError);
+            setNotifications([]);
           }
         }
       } catch (error) {

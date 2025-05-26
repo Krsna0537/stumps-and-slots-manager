@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -45,7 +46,7 @@ const BookingManagement = () => {
     }
   };
 
-  const updateBookingStatus = async (bookingId: string, newStatus: "pending" | "confirmed" | "cancelled" | "completed") => {
+  const updateBookingStatus = async (bookingId: string, newStatus: string) => {
     try {
       const { error } = await supabase
         .from('bookings')
@@ -59,6 +60,12 @@ const BookingManagement = () => {
           variant: "destructive",
         });
       } else {
+        // Create notification for the user
+        const booking = bookings.find(b => b.id === bookingId);
+        if (booking) {
+          await createNotification(booking.user_id, newStatus);
+        }
+        
         toast({
           title: "Success",
           description: `Booking ${newStatus} successfully!`,
@@ -67,6 +74,41 @@ const BookingManagement = () => {
       }
     } catch (error) {
       console.error('Error updating booking status:', error);
+    }
+  };
+
+  const createNotification = async (userId: string, status: string) => {
+    try {
+      const title = 'Booking Status Update';
+      let message = '';
+      let type = 'info';
+
+      switch (status) {
+        case 'confirmed':
+          message = 'Your booking has been approved!';
+          type = 'success';
+          break;
+        case 'rejected':
+          message = 'Your booking has been rejected. Please contact support for more information.';
+          type = 'error';
+          break;
+        case 'cancelled':
+          message = 'Your booking has been cancelled.';
+          type = 'warning';
+          break;
+        default:
+          message = `Your booking status has been updated to ${status}.`;
+      }
+
+      // Insert notification directly using SQL since the table isn't in TypeScript types yet
+      await supabase.rpc('create_notification', {
+        p_user_id: userId,
+        p_title: title,
+        p_message: message,
+        p_type: type
+      });
+    } catch (error) {
+      console.error('Error creating notification:', error);
     }
   };
 
@@ -119,6 +161,7 @@ const BookingManagement = () => {
               <SelectItem value="all">All Bookings</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="confirmed">Confirmed</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
               <SelectItem value="cancelled">Cancelled</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
@@ -186,7 +229,7 @@ const BookingManagement = () => {
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => updateBookingStatus(booking.id, 'cancelled')}
+                      onClick={() => updateBookingStatus(booking.id, 'rejected')}
                     >
                       <XCircle className="h-4 w-4 mr-1" />
                       Reject
