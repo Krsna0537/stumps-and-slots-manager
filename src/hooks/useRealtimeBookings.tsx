@@ -13,6 +13,7 @@ interface Booking {
   total_price: number;
   created_at: string;
   updated_at: string;
+  notes?: string | null;
   user_profiles?: {
     first_name: string | null;
     last_name: string | null;
