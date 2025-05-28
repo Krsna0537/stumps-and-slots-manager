@@ -22,6 +22,10 @@ export interface Database {
           total_price: number
           created_at: string
           updated_at: string
+          user_email?: string
+          time_slot?: string
+          date?: string
+          notes?: string
         }
         Insert: {
           id?: string
@@ -34,6 +38,10 @@ export interface Database {
           total_price: number
           created_at?: string
           updated_at?: string
+          user_email?: string
+          time_slot?: string
+          date?: string
+          notes?: string
         }
         Update: {
           id?: string
@@ -46,6 +54,10 @@ export interface Database {
           total_price?: number
           created_at?: string
           updated_at?: string
+          user_email?: string
+          time_slot?: string
+          date?: string
+          notes?: string
         }
         Relationships: [
           {
@@ -57,7 +69,7 @@ export interface Database {
           {
             foreignKeyName: "bookings_user_id_fkey"
             columns: ["user_id"]
-            referencedRelation: "users"
+            referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           }
         ]
@@ -66,45 +78,45 @@ export interface Database {
         Row: {
           id: string
           name: string
-          description: string
+          description: string | null
           location: string
           address: string
           price_per_hour: number
-          image_url: string
-          owner_id: string
-          is_featured: boolean
-          latitude: number
-          longitude: number
+          image_url: string | null
+          owner_id: string | null
+          is_featured: boolean | null
+          latitude: number | null
+          longitude: number | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
           name: string
-          description: string
+          description?: string | null
           location: string
           address: string
           price_per_hour: number
-          image_url: string
-          owner_id: string
-          is_featured?: boolean
-          latitude: number
-          longitude: number
+          image_url?: string | null
+          owner_id?: string | null
+          is_featured?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           name?: string
-          description?: string
+          description?: string | null
           location?: string
           address?: string
           price_per_hour?: number
-          image_url?: string
-          owner_id?: string
-          is_featured?: boolean
-          latitude?: number
-          longitude?: number
+          image_url?: string | null
+          owner_id?: string | null
+          is_featured?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -112,7 +124,7 @@ export interface Database {
           {
             foreignKeyName: "grounds_owner_id_fkey"
             columns: ["owner_id"]
-            referencedRelation: "users"
+            referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           }
         ]
@@ -120,36 +132,36 @@ export interface Database {
       notifications: {
         Row: {
           id: string
-          user_id: string
+          user_id: string | null
           title: string
           message: string
           type: 'success' | 'error' | 'warning' | 'info'
-          is_read: boolean
+          is_read: boolean | null
           created_at: string
         }
         Insert: {
           id?: string
-          user_id: string
+          user_id?: string | null
           title: string
           message: string
           type: 'success' | 'error' | 'warning' | 'info'
-          is_read?: boolean
+          is_read?: boolean | null
           created_at?: string
         }
         Update: {
           id?: string
-          user_id?: string
+          user_id?: string | null
           title?: string
           message?: string
           type?: 'success' | 'error' | 'warning' | 'info'
-          is_read?: boolean
+          is_read?: boolean | null
           created_at?: string
         }
         Relationships: [
           {
             foreignKeyName: "notifications_user_id_fkey"
             columns: ["user_id"]
-            referencedRelation: "users"
+            referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           }
         ]
@@ -159,9 +171,9 @@ export interface Database {
           id: string
           booking_id: string
           amount: number
-          payment_method: string
-          status: string
-          transaction_id: string
+          payment_method: string | null
+          status: 'pending' | 'completed' | 'failed' | 'refunded'
+          transaction_id: string | null
           created_at: string
           updated_at: string
         }
@@ -169,9 +181,9 @@ export interface Database {
           id?: string
           booking_id: string
           amount: number
-          payment_method?: string
-          status?: string
-          transaction_id?: string
+          payment_method?: string | null
+          status?: 'pending' | 'completed' | 'failed' | 'refunded'
+          transaction_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -179,9 +191,9 @@ export interface Database {
           id?: string
           booking_id?: string
           amount?: number
-          payment_method?: string
-          status?: string
-          transaction_id?: string
+          payment_method?: string | null
+          status?: 'pending' | 'completed' | 'failed' | 'refunded'
+          transaction_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -240,30 +252,30 @@ export interface Database {
       user_profiles: {
         Row: {
           id: string
-          first_name: string
-          last_name: string
-          phone: string
-          is_admin: boolean
-          created_at: string
-          updated_at: string
+          first_name: string | null
+          last_name: string | null
+          phone: string | null
+          is_admin: boolean | null
+          created_at: string | null
+          updated_at: string | null
         }
         Insert: {
           id: string
-          first_name: string
-          last_name: string
-          phone?: string
-          is_admin?: boolean
-          created_at?: string
-          updated_at?: string
+          first_name?: string | null
+          last_name?: string | null
+          phone?: string | null
+          is_admin?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
         }
         Update: {
           id?: string
-          first_name?: string
-          last_name?: string
-          phone?: string
-          is_admin?: boolean
-          created_at?: string
-          updated_at?: string
+          first_name?: string | null
+          last_name?: string | null
+          phone?: string | null
+          is_admin?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -279,13 +291,18 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin_user: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      booking_status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'rejected'
+      payment_status: 'pending' | 'completed' | 'failed' | 'refunded'
+      user_role: 'user' | 'admin' | 'ground_owner'
     }
     CompositeTypes: {
       [_ in never]: never
     }
   }
-} 
+}

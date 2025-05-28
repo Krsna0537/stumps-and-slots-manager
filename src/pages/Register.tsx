@@ -1,14 +1,14 @@
 
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import Navbar from '@/components/layout/Navbar';
-import Footer from '@/components/layout/Footer';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar, ArrowLeft } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
-import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Calendar, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const Register = () => {
   const [firstName, setFirstName] = useState('');
@@ -16,175 +16,275 @@ const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [terms, setTerms] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    if (!firstName || !lastName || !email || !password || !confirmPassword) {
-      setError('Please fill in all fields.');
-      return;
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!firstName.trim()) {
+      newErrors.firstName = 'First name is required';
     }
+
+    if (!lastName.trim()) {
+      newErrors.lastName = 'Last name is required';
+    }
+
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = 'Email is invalid';
+    }
+
+    if (!password) {
+      newErrors.password = 'Password is required';
+    } else if (password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+
+    if (phone && !/^\+?[\d\s-()]+$/.test(phone)) {
+      newErrors.phone = 'Phone number is invalid';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
       return;
     }
-    if (!terms) {
-      setError('You must agree to the Terms of Service and Privacy Policy.');
-      return;
-    }
+
     setLoading(true);
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { first_name: firstName, last_name: lastName }
-      }
-    });
-    if (signUpError) {
-      setLoading(false);
-      setError(signUpError.message);
-      return;
-    }
-    // Insert into user_profiles
-    const userId = data.user?.id;
-    if (userId) {
-      const { error: profileError } = await supabase.from('user_profiles').insert({
-        id: userId,
-        first_name: firstName,
-        last_name: lastName,
-        phone: '' // Default empty phone
+
+    try {
+      console.log('Starting registration process...');
+      
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: {
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+          }
+        }
       });
-      setLoading(false);
-      if (profileError) {
-        setError('Account created, but failed to save profile info.');
+
+      if (authError) {
+        console.error('Authentication error:', authError);
+        toast({
+          title: "Registration Failed",
+          description: authError.message,
+          variant: "destructive",
+        });
         return;
       }
-      setSuccess('Registration successful! Redirecting...');
-      setTimeout(() => navigate('/grounds'), 1500);
-    } else {
+
+      if (authData.user) {
+        console.log('User created, creating profile...');
+        
+        // Create user profile
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .insert({
+            id: authData.user.id,
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            phone: phone.trim() || null,
+            is_admin: false
+          });
+
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          toast({
+            title: "Profile Creation Failed",
+            description: "Account created but profile setup failed. Please contact support.",
+            variant: "destructive",
+          });
+        } else {
+          console.log('Profile created successfully');
+          toast({
+            title: "Registration Successful",
+            description: "Your account has been created successfully!",
+          });
+          
+          // Navigate to the intended page or dashboard
+          const from = (location.state as any)?.from || '/dashboard';
+          navigate(from, { replace: true });
+        }
+      }
+    } catch (error) {
+      console.error('Unexpected error during registration:', error);
+      toast({
+        title: "Registration Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setLoading(false);
-      setError('Registration failed. Please try again.');
     }
   };
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar />
-      
-      <main className="flex-1 flex items-center justify-center py-12">
-        <div className="container max-w-md">
-          <div className="text-center mb-8">
-            <Calendar className="h-12 w-12 text-green-600 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold mb-2">Create an Account</h1>
-            <p className="text-muted-foreground">Sign up to book cricket grounds</p>
-          </div>
-          
-          <div className="bg-white dark:bg-background border rounded-lg p-6 shadow-sm">
-            <form onSubmit={handleSubmit}>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="first-name">First Name</Label>
-                    <Input id="first-name" placeholder="John" value={firstName} onChange={e => setFirstName(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="last-name">Last Name</Label>
-                    <Input id="last-name" placeholder="Doe" value={lastName} onChange={e => setLastName(e.target.value)} />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)} />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input id="password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
-                  <p className="text-xs text-muted-foreground">
-                    Password must be at least 8 characters long with one uppercase letter, one lowercase letter, and one number.
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="confirm-password">Confirm Password</Label>
-                  <Input id="confirm-password" type="password" placeholder="••••••••" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="terms" checked={terms} onCheckedChange={checked => setTerms(!!checked)} />
-                  <Label htmlFor="terms" className="text-sm">
-                    I agree to the{" "}
-                    <Link to="/terms" className="text-primary hover:underline">
-                      Terms of Service
-                    </Link>{" "}
-                    and{" "}
-                    <Link to="/privacy" className="text-primary hover:underline">
-                      Privacy Policy
-                    </Link>
-                  </Label>
-                </div>
-                
-                {error && <div className="text-red-600 text-sm">{error}</div>}
-                {success && <div className="text-green-600 text-sm">{success}</div>}
-                
-                <Button className="w-full" type="submit" disabled={loading}>{loading ? 'Creating Account...' : 'Create Account'}</Button>
-              </div>
-            </form>
-            
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t"></div>
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white dark:bg-background px-2 text-muted-foreground">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 gap-4">
-              <Button variant="outline" className="w-full" type="button" disabled>
-                <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
-                  <path
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    fill="#4285F4"
-                  />
-                  <path
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    fill="#34A853"
-                  />
-                  <path
-                    d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.61z"
-                    fill="#FBBC05"
-                  />
-                  <path
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                    fill="#EA4335"
-                  />
-                  <path d="M1 1h22v22H1z" fill="none" />
-                </svg>
-                Google
-              </Button>
-            </div>
-            
-            <div className="mt-6 text-center text-sm">
-              Already have an account?{" "}
-              <Link to="/login" className="text-primary hover:underline">
-                <ArrowLeft className="inline h-4 w-4" /> Sign in
-              </Link>
-            </div>
-          </div>
+      <header className="border-b">
+        <div className="container flex h-16 items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <Calendar className="h-6 w-6 text-green-600" />
+            <span className="text-xl font-bold">StumpsNSlots</span>
+          </Link>
         </div>
+      </header>
+
+      <main className="flex-1 flex items-center justify-center py-12 px-4 bg-gradient-to-br from-green-50 to-green-100">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">Create Account</CardTitle>
+            <CardDescription>
+              Join StumpsNSlots to book your favorite cricket grounds
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {Object.keys(errors).length > 0 && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Please fix the following errors:
+                  <ul className="list-disc list-inside mt-2">
+                    {Object.entries(errors).map(([field, error]) => (
+                      <li key={field}>{error}</li>
+                    ))}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <form onSubmit={handleRegister} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name *</Label>
+                  <Input
+                    id="firstName"
+                    type="text"
+                    placeholder="John"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
+                    disabled={loading}
+                    className={errors.firstName ? 'border-red-500' : ''}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name *</Label>
+                  <Input
+                    id="lastName"
+                    type="text"
+                    placeholder="Doe"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                    disabled={loading}
+                    className={errors.lastName ? 'border-red-500' : ''}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="john@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={loading}
+                  className={errors.email ? 'border-red-500' : ''}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="+1 (555) 123-4567"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  disabled={loading}
+                  className={errors.phone ? 'border-red-500' : ''}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Password *</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={loading}
+                    className={errors.password ? 'border-red-500' : ''}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3"
+                    onClick={() => setShowPassword(!showPassword)}
+                    disabled={loading}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password *</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  disabled={loading}
+                  className={errors.confirmPassword ? 'border-red-500' : ''}
+                />
+              </div>
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? 'Creating Account...' : 'Create Account'}
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                Already have an account?{' '}
+                <Link to="/login" className="text-green-600 hover:underline font-medium">
+                  Sign in
+                </Link>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </main>
-      
-      <Footer />
     </div>
   );
 };
