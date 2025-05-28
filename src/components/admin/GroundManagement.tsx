@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -98,33 +97,6 @@ const GroundManagement = () => {
     setIsSubmitting(true);
 
     try {
-      console.log('Getting current user...');
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError) {
-        console.error('Error getting user:', userError);
-        toast({
-          title: "Error",
-          description: "Failed to get user information. Please try logging in again.",
-          variant: "destructive",
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (!user) {
-        console.error('No user found');
-        toast({
-          title: "Error",
-          description: "You must be logged in to add grounds.",
-          variant: "destructive",
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      console.log('Current user:', user.id);
-      
       const groundData = {
         name: formData.name.trim(),
         location: formData.location.trim(),
@@ -134,7 +106,7 @@ const GroundManagement = () => {
         image_url: formData.image_url.trim() || '',
         latitude: formData.latitude ? Number(formData.latitude) : null,
         longitude: formData.longitude ? Number(formData.longitude) : null,
-        owner_id: user.id
+        owner_id: 'bdd48058-64a2-4974-8d3e-57bc527cd931'
       };
 
       console.log('Inserting ground data:', groundData);
