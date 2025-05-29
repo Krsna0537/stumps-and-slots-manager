@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Bell, Check } from 'lucide-react';
+import { Bell, Check, CheckCircle, XCircle, AlertTriangle, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Notification } from '@/types/supabase';
@@ -32,6 +32,12 @@ const NotificationCenter = () => {
               description: newNotification.message,
             });
           }
+        }
+      )
+      .on('postgres_changes', 
+        { event: 'UPDATE', schema: 'public', table: 'notifications' },
+        () => {
+          fetchNotifications();
         }
       )
       .subscribe();
@@ -109,12 +115,39 @@ const NotificationCenter = () => {
     }
   };
 
+  const getTypeIcon = (type: Notification['type']) => {
+    const iconProps = { className: "h-5 w-5" };
+    
+    switch (type) {
+      case 'success':
+        return <CheckCircle {...iconProps} className="h-5 w-5 text-green-600" />;
+      case 'error':
+        return <XCircle {...iconProps} className="h-5 w-5 text-red-600" />;
+      case 'warning':
+        return <AlertTriangle {...iconProps} className="h-5 w-5 text-yellow-600" />;
+      case 'info':
+        return <Info {...iconProps} className="h-5 w-5 text-blue-600" />;
+      default:
+        return <Info {...iconProps} className="h-5 w-5 text-gray-600" />;
+    }
+  };
+
   const getTypeColor = (type: Notification['type']) => {
     const colors: Record<Notification['type'], string> = {
-      success: 'bg-green-100 text-green-800',
-      error: 'bg-red-100 text-red-800',
-      warning: 'bg-yellow-100 text-yellow-800',
-      info: 'bg-blue-100 text-blue-800'
+      success: 'bg-green-100 text-green-800 border-green-200',
+      error: 'bg-red-100 text-red-800 border-red-200',
+      warning: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      info: 'bg-blue-100 text-blue-800 border-blue-200'
+    };
+    return colors[type];
+  };
+
+  const getCardBorderColor = (type: Notification['type']) => {
+    const colors: Record<Notification['type'], string> = {
+      success: 'border-l-green-500',
+      error: 'border-l-red-500',
+      warning: 'border-l-yellow-500',
+      info: 'border-l-blue-500'
     };
     return colors[type];
   };
@@ -150,29 +183,32 @@ const NotificationCenter = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {notifications.map((notification) => (
             <Card
               key={notification.id}
-              className={`transition-all ${
-                !notification.is_read ? 'border-blue-200 bg-blue-50' : ''
+              className={`transition-all border-l-4 ${getCardBorderColor(notification.type)} ${
+                !notification.is_read ? 'bg-blue-50/50 border-blue-200' : ''
               }`}
             >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-medium">{notification.title}</h4>
-                      <Badge className={getTypeColor(notification.type)}>
-                        {notification.type}
-                      </Badge>
-                      {!notification.is_read && (
-                        <Badge variant="destructive" className="text-xs">
-                          New
+                    <div className="flex items-center gap-3 mb-2">
+                      {getTypeIcon(notification.type)}
+                      <div className="flex items-center gap-2 flex-1">
+                        <h4 className="font-medium text-gray-900">{notification.title}</h4>
+                        <Badge className={`${getTypeColor(notification.type)} border text-xs`}>
+                          {notification.type}
                         </Badge>
-                      )}
+                        {!notification.is_read && (
+                          <Badge variant="destructive" className="text-xs">
+                            New
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-2">
+                    <p className="text-sm text-gray-700 mb-3 leading-relaxed">
                       {notification.message}
                     </p>
                     <p className="text-xs text-muted-foreground">
@@ -184,6 +220,7 @@ const NotificationCenter = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => markAsRead(notification.id)}
+                      className="ml-4"
                     >
                       <Check className="h-4 w-4" />
                     </Button>

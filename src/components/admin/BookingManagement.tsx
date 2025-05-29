@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
 import { AccessibilityWrapper, useKeyboardNavigation } from '@/components/accessibility/AccessibilityWrapper';
+import { createBookingNotification } from '@/services/notificationService';
 
 // Define the booking status type based on the database enum
 type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'rejected';
@@ -22,18 +22,22 @@ const BookingManagement = () => {
   const { toast } = useToast();
   const [error, setError] = useState<string | null>(null);
 
-  const updateBookingStatus = async (bookingId: string, newStatus: BookingStatus) => {
+  const updateBookingStatus = async (bookingId: string, newStatus: BookingStatus, adminComment?: string) => {
     console.log(`Updating booking ${bookingId} to status: ${newStatus}`);
     
     // Add to updating set to show loading state
     setUpdatingBookings(prev => new Set(prev).add(bookingId));
     
     try {
+      // Find the booking to get user info for notification
+      const bookingToUpdate = bookings.find(b => b.id === bookingId);
+      
       const { data, error } = await supabase
         .from('bookings')
         .update({ 
           status: newStatus,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          ...(adminComment && { notes: adminComment })
         })
         .eq('id', bookingId)
         .select();
@@ -47,6 +51,17 @@ const BookingManagement = () => {
         });
       } else {
         console.log('Booking updated successfully:', data);
+        
+        // Send notification to user if status is confirmed or rejected
+        if (bookingToUpdate && (newStatus === 'confirmed' || newStatus === 'rejected')) {
+          try {
+            await createBookingNotification(bookingToUpdate, newStatus, adminComment);
+            console.log('Notification sent to user');
+          } catch (notificationError) {
+            console.error('Error sending notification:', notificationError);
+          }
+        }
+        
         toast({
           title: "Success",
           description: `Booking ${newStatus} successfully!`,
@@ -56,7 +71,12 @@ const BookingManagement = () => {
         setBookings(prevBookings => 
           prevBookings.map(booking => 
             booking.id === bookingId 
-              ? { ...booking, status: newStatus, updated_at: new Date().toISOString() }
+              ? { 
+                  ...booking, 
+                  status: newStatus, 
+                  updated_at: new Date().toISOString(),
+                  ...(adminComment && { notes: adminComment })
+                }
               : booking
           )
         );

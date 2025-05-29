@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
@@ -24,6 +23,7 @@ const Dashboard = () => {
     if (user) {
       fetchUserBookings();
       fetchNotificationCount();
+      setupNotificationListener();
     }
   }, [user]);
 
@@ -70,6 +70,37 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error fetching notification count:', error);
     }
+  };
+
+  const setupNotificationListener = () => {
+    const channel = supabase
+      .channel('user-notifications')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'notifications',
+          filter: `user_id=eq.${user?.id}`
+        },
+        (payload) => {
+          console.log('Notification update:', payload);
+          fetchNotificationCount();
+          
+          // Show toast for new notifications
+          if (payload.eventType === 'INSERT' && payload.new) {
+            const newNotification = payload.new as any;
+            toast({
+              title: newNotification.title,
+              description: newNotification.message,
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   };
 
   const getStatusBadge = (status: string) => {
@@ -121,7 +152,7 @@ const Dashboard = () => {
                 <Bell className="h-4 w-4 mr-2" />
                 Notifications
                 {unreadCount > 0 && (
-                  <Badge variant="destructive" className="absolute -top-2 -right-2 text-xs">
+                  <Badge variant="destructive" className="absolute -top-2 -right-2 text-xs min-w-[1.25rem] h-5">
                     {unreadCount}
                   </Badge>
                 )}
