@@ -15,21 +15,25 @@ export const createNotification = async ({
   type
 }: CreateNotificationParams) => {
   try {
-    const { error } = await supabase
+    console.log('Creating notification:', { userId, title, message, type });
+    
+    const { data, error } = await supabase
       .from('notifications')
       .insert({
         user_id: userId,
         title,
         message,
         type
-      });
+      })
+      .select();
 
     if (error) {
       console.error('Error creating notification:', error);
       return { success: false, error };
     }
 
-    return { success: true };
+    console.log('Notification created successfully:', data);
+    return { success: true, data };
   } catch (error) {
     console.error('Unexpected error creating notification:', error);
     return { success: false, error };
@@ -41,6 +45,8 @@ export const createBookingNotification = async (
   status: 'confirmed' | 'rejected',
   adminComment?: string
 ) => {
+  console.log('Creating booking notification for:', { bookingId: booking.id, status, adminComment });
+  
   const groundName = booking.grounds?.name || 'Unknown Ground';
   const bookingDate = new Date(booking.booking_date).toLocaleDateString('en-US', {
     weekday: 'long',
@@ -68,10 +74,13 @@ export const createBookingNotification = async (
     message += ` Admin note: ${adminComment}`;
   }
 
-  return createNotification({
+  const result = await createNotification({
     userId: booking.user_id,
     title,
     message,
     type
   });
+
+  console.log('Booking notification result:', result);
+  return result;
 };
